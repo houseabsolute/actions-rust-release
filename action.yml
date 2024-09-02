@@ -1,0 +1,122 @@
+name: "Release Rust project binaries as GitHub releases"
+author: "Dave Rolsky <autarch@urth.org>"
+branding:
+  icon: home
+  color: gray-dark
+description: |
+  This action provides tooling for releasing binaries from Rust projects as GitHub releases.
+inputs:
+  executable-name:
+    description: |
+      The name of the executable. In most cases, this is just the name of your project, like `cross` or
+      `mise`. This is required.
+    required: true
+  release-tag-prefix:
+    description: |
+      The prefix for release tags. The default is "v", so that tags like "v1.2.3" trigger a
+      release.
+    default: "v"
+  target:
+    description: |
+      The rust target name, like "x86_64-unknown-linux-gnu". This is used to find the output of
+      `cargo build`. If this isn't provided, then this action will look for the build output under
+      `target/release`, instead of something like `target/x86_64-unknown-linux-gnu/release`.
+
+      Either this input or the `archive-name` input must be provided.
+  archive-name:
+    description: |
+      The name of the archive file to produce. This will contain the executable and any additional
+      files specified in the `files-to-package` input, if any. If this isn't given, then one will be
+      created based, starting with the `executable-name` and followed by elements from the `target`
+      input.
+
+      Either this input or the `target` input must be provided.
+  extra-files:
+    description: |
+      A newline separated list of additional files or globs to include in the archive files for a
+      release.
+
+      Defaults to the file specified by the `changes-file` input and any file matching `README*` in
+      the project root.
+
+      If you _do_ specify any files, then you will need to also list the changes file and README
+      explicitly if you want them to be included.
+  changes-file:
+    description: |
+      The name of the file that contains the changelog for this project. This will be used to
+      generate a description for the GitHub Release. The default is `Changes.md`.
+    default: "Changes.md"
+outputs:
+  artifact-id:
+    description: |
+      This is the ID of the artifact created by this action.
+    value: ${{ steps.publish-release-artifact.outputs.artifact-id }}
+  artifact-url:
+    description: |
+      This is the URL of the artifact created by this action.
+    value: ${{ steps.publish-release-artifact.outputs.artifact-url }}
+runs:
+  using: composite
+  steps:
+    - name: Show config
+      shell: bash
+      run: |
+        echo "release-tag-prefix = ${{ inputs.release-tag-prefix }}"
+        echo "executable-name = ${{ inputs.executable-name }}"
+        echo "target = ${{ inputs.target }}"
+        echo "archive-name = ${{ inputs.archive-name }}"
+        echo "extra-files = ${{ inputs.extra-files }}"
+        echo "changes-file = ${{ inputs.changes-file }}"
+        echo "github.ref = ${{ github.ref }}"
+        echo "github.ref_type = ${{ github.ref_type }}"
+        echo "matches release-tag-prefix = ${{ startsWith( github.ref_name, inputs.release-tag-prefix ) }}"
+    - name: Add this action's path to PATH
+      shell: bash
+      run: echo "${{ github.action_path }}" >> $GITHUB_PATH
+    - name: Package as archive
+      id: package-archive
+      shell: bash
+      run: |
+        make-archive.pl \
+            --executable-name "${{ inputs.executable-name }}" \
+            --target "${{ inputs.target }}" \
+            --archive-name "${{ inputs.archive-name }}" \
+            --changes-file "${{ inputs.changes-file }}" \
+            --extra-files "${{ inputs.extra-files }}"
+    - name: Generate SHA-256 checksum file (*nix)
+      shell: bash
+      run: |
+        set -e
+        set -x
+
+        shasum --algorithm 256 \
+            "${{ steps.package-archive.outputs.archive-basename }}" \
+            > "${{ steps.package-archive.outputs.archive-basename }}.sha256"
+      if: runner.os != 'Windows'
+    - name: Install dos2unix and psutils on Windows
+      shell: powershell
+      run: |
+        choco install --ignore-checksums dos2unix psutils
+      if: runner.os == 'Windows'
+    - name: Generate SHA-256 checksum file (Windows)
+      shell: powershell
+      run: |
+        shasum --algorithm 256 `
+            "${{ steps.package-archive.outputs.archive-basename }}" `
+            > "${{ steps.package-archive.outputs.archive-basename }}.sha256"
+        dos2unix "${{ steps.package-archive.outputs.archive-basename }}.sha256"
+      if: runner.os == 'Windows'
+    - name: Publish release artifact for run
+      id: publish-release-artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.package-archive.outputs.archive-basename }}
+        path: ${{ steps.package-archive.outputs.archive-basename }}*
+    - name: Publish GitHub release
+      uses: softprops/action-gh-release@v2
+      with:
+        draft: true
+        # The trailing "*" should pick up the checksum file.
+        files: ${{ steps.package-archive.outputs.archive-basename }}*
+        body_path: ${{ inputs.changes-file }}
+      if: github.ref_type == 'tag' && startsWith( github.ref_name, inputs.release-tag-prefix )

@@ -1,0 +1,64 @@
+name: Self-test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Test
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - platform_name: Linux-x86_64
+            os: ubuntu-20.04
+            target: x86_64-unknown-linux-musl
+            cache-cross-binary: true
+          - platform_name: Linux-powerpc64
+            os: ubuntu-20.04
+            target: powerpc64-unknown-linux-gnu
+            cache-cross-binary: true
+          - platform_name: Windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - platform_name: macOS-aarch64
+            os: macOS-latest
+            target: aarch64-apple-darwin
+
+    runs-on: ${{ matrix.platform.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Copy test project to root
+        shell: bash
+        run: |
+          cp -a test-project/* .
+          rm -fr test-project
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v0
+        with:
+          command: build
+          args: "--release"
+          target: ${{ matrix.platform.target }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Release
+        id: release
+        uses: ./
+        with:
+          executable-name: test-project
+          target: ${{ matrix.platform.target }}
+          # We don't want to actually do a release when running tests.
+          release-tag-prefix: "do-not-release"
+      - name: Install psutils on Windows
+        run: choco install --ignore-checksums psutils
+        if: runner.os == 'Windows'
+      - name: Check release artifacts
+        shell: bash
+        run: |
+          ./tests/check-release.pl \
+              --artifact-id "${{ steps.release.outputs.artifact-id }}" \
+              --executable-name test-project \
+              --github-token "${{ github.token }}" \
+              --repo houseabsolute/actions-rust-release \
+              --target "${{ matrix.platform.target }}"
