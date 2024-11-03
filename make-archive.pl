@@ -19,12 +19,17 @@ use Getopt::Long;
 
 sub main {
     GetOptions(
-        'executable-name=s' => \my $executable_name,
-        'target=s'          => \my $target,
-        'archive-name=s'    => \my $archive_name,
-        'changes-file=s'    => \my $changes_file,
-        'extra-files=s'     => \my $extra_files,
+        'executable-name=s'   => \my $executable_name,
+        'target=s'            => \my $target,
+        'archive-name=s'      => \my $archive_name,
+        'changes-file=s'      => \my $changes_file,
+        'extra-files=s'       => \my $extra_files,
+        'working-directory=s' => \my $working_dir,
     );
+
+    if ($working_dir) {
+        chdir $working_dir;
+    }
 
     if ( !$executable_name ) {
         die 'The --executable-name option is required.';
