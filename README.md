@@ -117,6 +117,14 @@ explicitly if you want them to be included.
 The name of the file that contains the changelog for this project. This will be used to generate a
 description for the GitHub Release.
 
+### `working-directory`
+
+- **Required**: no
+- **Default**: `"."`
+
+The current working directory in which all actions are performed. This defaults to the checked out
+repo's root. You use relative paths to set this to a subdirectory in the repo.
+
 ## Outputs
 
 This action provides two outputs.

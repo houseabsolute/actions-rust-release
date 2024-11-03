@@ -46,6 +46,11 @@ inputs:
       The name of the file that contains the changelog for this project. This will be used to
       generate a description for the GitHub Release. The default is `Changes.md`.
     default: "Changes.md"
+  working-directory:
+    description: |
+      The current working directory in which the Rust project is. It defaults to "." so the
+      current working directory.
+    default: "."
 outputs:
   artifact-id:
     description: |
@@ -67,6 +72,7 @@ runs:
         echo "archive-name = ${{ inputs.archive-name }}"
         echo "extra-files = ${{ inputs.extra-files }}"
         echo "changes-file = ${{ inputs.changes-file }}"
+        echo "working-directory = ${{ inputs.working-directory }}"
         echo "github.ref = ${{ github.ref }}"
         echo "github.ref_type = ${{ github.ref_type }}"
         echo "matches release-tag-prefix = ${{ startsWith( github.ref_name, inputs.release-tag-prefix ) }}"
@@ -82,13 +88,15 @@ runs:
             --target "${{ inputs.target }}" \
             --archive-name "${{ inputs.archive-name }}" \
             --changes-file "${{ inputs.changes-file }}" \
-            --extra-files "${{ inputs.extra-files }}"
+            --extra-files "${{ inputs.extra-files }}" \
+            --working-directory "${{ inputs.working-directory }}"
     - name: Generate SHA-256 checksum file (*nix)
       shell: bash
       run: |
         set -e
         set -x
 
+        cd ${{ inputs.working-directory }}
         shasum --algorithm 256 \
             "${{ steps.package-archive.outputs.archive-basename }}" \
             > "${{ steps.package-archive.outputs.archive-basename }}.sha256"
@@ -101,6 +109,7 @@ runs:
     - name: Generate SHA-256 checksum file (Windows)
       shell: powershell
       run: |
+        cd ${{ inputs.working-directory }}
         shasum --algorithm 256 `
             "${{ steps.package-archive.outputs.archive-basename }}" `
             > "${{ steps.package-archive.outputs.archive-basename }}.sha256"
@@ -111,12 +120,12 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: ${{ steps.package-archive.outputs.archive-basename }}
-        path: ${{ steps.package-archive.outputs.archive-basename }}*
+        path: ${{ inputs.working-directory }}/${{ steps.package-archive.outputs.archive-basename }}*
     - name: Publish GitHub release
       uses: softprops/action-gh-release@v2
       with:
         draft: true
         # The trailing "*" should pick up the checksum file.
-        files: ${{ steps.package-archive.outputs.archive-basename }}*
-        body_path: ${{ inputs.changes-file }}
+        files: ${{ inputs.working-directory }}/${{ steps.package-archive.outputs.archive-basename }}*
+        body_path: ${{ inputs.working-directory }}/${{ inputs.changes-file }}
       if: github.ref_type == 'tag' && startsWith( github.ref_name, inputs.release-tag-prefix )
