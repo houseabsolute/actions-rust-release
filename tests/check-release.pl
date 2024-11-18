@@ -60,30 +60,34 @@ sub main {
     ok( $archive_file,  'found an archive file in the artifact tarball' );
     ok( $checksum_file, 'found a checksum file in the artifact tarball' );
 
-    open my $fh, '<', $checksum_file;
-    my $sha256_contents = do { local $/; <$fh> };
-    $sha256_contents =~ s/^\s+|\s+$//g;
-    my ( $checksum, $filename ) = $sha256_contents =~ /^(\S+) [ \*](\S+)$/;
-    is( $filename, $archive_file, 'filename in checksum file matches archive filename' )
-        or diag($sha256_contents);
+    if ( -f $checksum_file ) {
+        open my $fh, '<', $checksum_file;
+        my $sha256_contents = do { local $/; <$fh> };
+        $sha256_contents =~ s/^\s+|\s+$//g;
+        my ( $checksum, $filename ) = $sha256_contents =~ /^(\S+) [ \*](\S+)$/;
+        is( $filename, $archive_file, 'filename in checksum file matches archive filename' )
+            or diag($sha256_contents);
 
-    # I would prefer to just run shasum but I wasn't able to get it to run on Windows.
-    my $sha = Digest::SHA->new(256);
-    $sha->addfile($filename);
-    is( $checksum, $sha->hexdigest, 'checksum in checksum file is correct' );
-
-    if ( $archive_file =~ /\.zip$/ ) {
-        system( 'unzip', $archive_file );
-    }
-    else {
-        system( 'tar', 'xzf', $archive_file );
+        # I would prefer to just run shasum but I wasn't able to get it to run on Windows.
+        my $sha = Digest::SHA->new(256);
+        $sha->addfile($filename);
+        is( $checksum, $sha->hexdigest, 'checksum in checksum file is correct' );
     }
 
-    for my $file ( $executable_name, qw( README.md Changes.md ) ) {
-        ok( -f $file, "$file exists after unpacking archive" );
-    }
+    if ( -f $archive_file ) {
+        if ( $archive_file =~ /\.zip$/ ) {
+            system( 'unzip', $archive_file );
+        }
+        else {
+            system( 'tar', 'xzf', $archive_file );
+        }
 
-    ok( -x $executable_name, "$executable_name binary is executable" );
+        for my $file ( $executable_name, qw( README.md Changes.md ) ) {
+            ok( -f $file, "$file exists after unpacking archive" );
+        }
+
+        ok( -x $executable_name, "$executable_name binary is executable" );
+    }
 
     done_testing();
 }
