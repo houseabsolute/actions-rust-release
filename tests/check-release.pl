@@ -49,7 +49,7 @@ sub main {
 
     system( 'unzip', 'artifact.zip' );
 
-    my $glob  = $target =~ /windows/i ? 'test-project*.zip*' : 'test-project*.tar.gz*';
+    my $glob  = $target =~ /windows/i ? "$executable_name*.zip*" : "$executable_name*.tar.gz*";
     my @files = glob $glob;
 
     is( scalar @files, 2, 'found two files in the artifact tarball' )
