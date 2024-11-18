@@ -2,6 +2,9 @@
 
 - Added a new `working-directory` parameter. When this is set, all actions are performed from inside
   this directory. Implemented by @Snoupix. GH #4.
+- Fixed a bug where even when `extra-files` was set, the action would fail if there was no
+  `Changes.md` file present. This contradicted the docs, which said that when `extra-files` was set,
+  the `changes-file` parameter would be ignored. Reported by @jannes. GH #3.
 
 ## 0.0.2 - 2024-10-27
 

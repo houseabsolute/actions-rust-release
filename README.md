@@ -107,7 +107,8 @@ Defaults to the file specified by the `changes-file` input and any file matching
 project root.
 
 If you _do_ specify any files, then you will need to also list the changes file and README
-explicitly if you want them to be included.
+explicitly if you want them to be included. The value pass in `changes-files` will be ignored in
+this case.
 
 ### `changes-file`
 
