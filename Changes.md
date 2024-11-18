@@ -1,4 +1,4 @@
-## 0.0.3
+## 0.0.3 - 2024-11-18
 
 - Added a new `working-directory` parameter. When this is set, all actions are performed from inside
   this directory. Implemented by @Snoupix. GH #4.
