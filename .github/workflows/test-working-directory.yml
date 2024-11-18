@@ -1,4 +1,4 @@
-name: Test Release
+name: Test working-directory Parameter
 
 on:
   push:
@@ -40,13 +40,15 @@ jobs:
         with:
           command: build
           args: "--release"
+          working-directory: sub-project
           target: ${{ matrix.platform.target }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Release
+      - name: Release sub project
         id: release
         uses: ./
         with:
-          executable-name: test-project
+          executable-name: sub-project
+          working-directory: sub-project
           target: ${{ matrix.platform.target }}
           # We don't want to actually do a release when running tests.
           release-tag-prefix: "do-not-release"
@@ -58,7 +60,7 @@ jobs:
         run: |
           ./tests/check-release.pl \
               --artifact-id "${{ steps.release.outputs.artifact-id }}" \
-              --executable-name test-project \
+              --executable-name sub-project \
               --github-token "${{ github.token }}" \
               --repo houseabsolute/actions-rust-release \
               --target "${{ matrix.platform.target }}"
