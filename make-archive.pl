@@ -39,8 +39,10 @@ sub main {
         die 'You must provide either a target or archive-name when using this action.';
     }
 
-    if ( $changes_file && !-f $changes_file ) {
-        die "Changes file '$changes_file' does not exist.";
+    if ( !$extra_files ) {
+        if ( $changes_file && !-f $changes_file ) {
+            die "Changes file '$changes_file' does not exist.";
+        }
     }
 
     if ( !$archive_name ) {
