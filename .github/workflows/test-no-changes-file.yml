@@ -1,0 +1,47 @@
+name: Test Empty String in changes-file Parameter
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Test no changes file
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Copy test project to root
+        shell: bash
+        run: |
+          cp -a test-project/* .
+          rm -fr test-project
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v0
+        with:
+          command: build
+          args: "--release"
+          target: x86_64-unknown-linux-musl
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Release
+        id: release
+        uses: ./
+        with:
+          executable-name: test-project
+          target: x86_64-unknown-linux-musl
+          changes-file: ""
+          # We don't want to actually do a release when running tests.
+          release-tag-prefix: "do-not-release"
+      - name: Install psutils on Windows
+        run: choco install --ignore-checksums psutils
+        if: runner.os == 'Windows'
+      - name: Check release artifacts
+        shell: bash
+        run: |
+          ./tests/check-release.pl \
+              --artifact-id "${{ steps.release.outputs.artifact-id }}" \
+              --executable-name test-project \
+              --github-token "${{ github.token }}" \
+              --repo houseabsolute/actions-rust-release \
+              --target "x86_64-unknown-linux-musl" \
+              --no-changes-file

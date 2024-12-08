@@ -24,6 +24,7 @@ sub main {
     my $github_token;
     my $repo;
     my $target;
+    my $changes_file = 1;
 
     GetOptions(
         'artifact-id=s'     => \$artifact_id,
@@ -31,6 +32,7 @@ sub main {
         'github-token=s'    => \$github_token,
         'repo=s'            => \$repo,
         'target=s'          => \$target,
+        'changes-file!'     => \$changes_file,
     );
 
     # We want to run this in a clean dir to avoid any conflicts with files in the current dir, like
@@ -82,7 +84,12 @@ sub main {
             system( 'tar', 'xzf', $archive_file );
         }
 
-        for my $file ( $executable_name, qw( README.md Changes.md ) ) {
+        my @expect_files = 'README.md';
+        if ($changes_file) {
+            push @expect_files, 'Changes.md';
+        }
+
+        for my $file ( $executable_name, @expect_files ) {
             ok( -f $file, "$file exists after unpacking archive" );
         }
 

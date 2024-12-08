@@ -83,7 +83,7 @@ sub main {
     }
 
     my $td = tempdir( CLEANUP => 1 );
-    for my $file (@files) {
+    for my $file ( grep {length} @files ) {
         copy( $file => $td )
             or die "Cannot copy $file => $td: $!";
     }

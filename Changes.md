@@ -1,3 +1,9 @@
+## 0.0.4
+
+- The `changes-file` parameter can be set to an empty string. If you do this, then the action will
+  not look for a changelog file to include in the release. Based on a bug report by @magick93. GH
+  #5.
+
 ## 0.0.3 - 2024-11-18
 
 - Added a new `working-directory` parameter. When this is set, all actions are performed from inside

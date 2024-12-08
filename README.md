@@ -118,6 +118,8 @@ this case.
 The name of the file that contains the changelog for this project. This will be used to generate a
 description for the GitHub Release.
 
+If you set this to an empty string, then no changelog file will be included.
+
 ### `working-directory`
 
 - **Required**: no
