@@ -1,4 +1,4 @@
-## 0.0.4
+## 0.0.4 - 2024-12-08
 
 - The `changes-file` parameter can be set to an empty string. If you do this, then the action will
   not look for a changelog file to include in the release. Based on a bug report by @magick93. GH
