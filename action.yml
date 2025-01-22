@@ -127,5 +127,5 @@ runs:
         draft: true
         # The trailing "*" should pick up the checksum file.
         files: ${{ inputs.working-directory }}/${{ steps.package-archive.outputs.archive-basename }}*
-        body_path: ${{ inputs.working-directory }}/${{ inputs.changes-file }}
+        body_path: ${{ ( inputs.changes-file && format( '{0}/{1}', inputs.working-directory, inputs.changes-file ) ) || '' }}
       if: github.ref_type == 'tag' && startsWith( github.ref_name, inputs.release-tag-prefix )
