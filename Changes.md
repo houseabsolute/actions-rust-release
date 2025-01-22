@@ -1,3 +1,9 @@
+## 0.0.5
+
+- Trying to do an actual release with `changes-file` set to an empty string caused the
+  `softprops/action-gh-release` action to fail with an error like
+  `EISDIR: illegal operation on a directory, read`. Fixed by @xen (yksen). GH PR #6. Fixes GH #7.
+
 ## 0.0.4 - 2024-12-08
 
 - The `changes-file` parameter can be set to an empty string. If you do this, then the action will
