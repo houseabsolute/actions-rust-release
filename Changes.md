@@ -1,4 +1,4 @@
-## 0.0.5
+## 0.0.5 - 2025-02-09
 
 - Trying to do an actual release with `changes-file` set to an empty string caused the
   `softprops/action-gh-release` action to fail with an error like
