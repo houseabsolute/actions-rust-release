@@ -94,7 +94,7 @@ runs:
       id: package-archive
       shell: bash
       run: |
-        make-archive.pl \
+        make-archive.py \
             --executable-name "${{ inputs.executable-name }}" \
             --target "${{ inputs.target }}" \
             --archive-name "${{ inputs.archive-name }}" \
