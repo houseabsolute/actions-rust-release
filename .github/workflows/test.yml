@@ -56,7 +56,7 @@ jobs:
       - name: Check release artifacts
         shell: bash
         run: |
-          ./tests/check-release.pl \
+          ./tests/check-release.py \
               --artifact-id "${{ steps.release.outputs.artifact-id }}" \
               --executable-name test-project \
               --github-token "${{ github.token }}" \
