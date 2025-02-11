@@ -72,23 +72,27 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Show config
+    - name: Show inputs
       shell: bash
       run: |
-        echo "release-tag-prefix = ${{ inputs.release-tag-prefix }}"
-        echo "executable-name = ${{ inputs.executable-name }}"
-        echo "target = ${{ inputs.target }}"
-        echo "archive-name = ${{ inputs.archive-name }}"
-        echo "extra-files = ${{ inputs.extra-files }}"
-        echo "changes-file = ${{ inputs.changes-file }}"
-        echo "working-directory = ${{ inputs.working-directory }}"
-        echo "github.ref = ${{ github.ref }}"
-        echo "github.ref_type = ${{ github.ref_type }}"
-        echo "matches release-tag-prefix = ${{ startsWith( github.ref_name, inputs.release-tag-prefix ) }}"
+        echo '${{ toJSON(inputs) }}'
 
     - name: Add this action's path to PATH
       shell: bash
       run: echo "${{ github.action_path }}" >> $GITHUB_PATH
+
+    - name: Validate inputs
+      shell: bash
+      run: |
+        validate-inputs.py "${{ github.workspace }}"
+      env:
+        INPUTS_executable_name: ${{ inputs.executable_name }}
+        INPUTS_release_tag_prefix: ${{ inputs.release-tag-prefix }}
+        INPUTS_target: ${{ inputs.target }}
+        INPUTS_archive_name: ${{ inputs.archive-name }}
+        INPUTS_extra-files: ${{ inputs.extra-files }}
+        INPUTS_changes_file: ${{ inputs.changes-file }}
+        INPUTS_working_directory: ${{ inputs.working-directory }}
 
     - name: Package as archive
       id: package-archive

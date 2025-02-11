@@ -1,3 +1,8 @@
+## 0.0.6
+
+- Added validation for all input parameters. This should provide better errors when a required
+  parameter is missing or a parameter is invalid (like referring to a path which does not exist).
+
 ## 0.0.5 - 2025-02-09
 
 - Trying to do an actual release with `changes-file` set to an empty string caused the
