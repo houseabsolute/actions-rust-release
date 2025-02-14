@@ -84,8 +84,14 @@ sub main {
 
     my $td = tempdir( CLEANUP => 1 );
     for my $file ( grep {length} @files ) {
-        copy( $file => $td )
-            or die "Cannot copy $file => $td: $!";
+        if (-d $file) {
+            my $dir_name = basename($file);
+            my $dest_dir = File::Spec -> catdir($td, $dir_name);
+            recursive_copy($file, $dest_dir);
+        } else {
+            copy( $file => $td )
+                or die "Cannot copy $file => $td: $!";
+        }
     }
 
     chdir $td;
@@ -103,6 +109,28 @@ sub main {
     my $archive_basename = basename($archive_file);
     say {$fh} "archive-basename=$archive_basename";
     close $fh;
+}
+
+sub recursive_copy {
+    my ($src, $dest) = @_;
+
+    mkdir $dest or die "Cannot create directory $dest: $!" unless -d $dest;
+
+    opendir(my $dh, $src) or die "Cannot open directory $src: $!";
+    while (my $entry = readdir($dh)) {
+        next if $entry eq '.' || $entry eq '..';
+
+        my $src_path  = File::Spec->catfile($src, $entry);
+        my $dest_path = File::Spec->catfile($dest, $entry);
+
+        if (-d $src_path) {
+            mkdir $dest_path or die "Cannot create directory $dest_path: $!";
+            recursive_copy($src_path, $dest_path);
+        } else {
+            copy($src_path, $dest_path) or die "Cannot copy $src_path => $dest_path: $!";
+        }
+    }
+    closedir $dh;
 }
 
 sub target_to_archive_name($target) {
