@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import json
 from pathlib import Path
 from typing import Dict, List, Union
 import tempfile
@@ -97,6 +98,15 @@ class InputValidator:
         # Validate extra-files if present
         if "extra_files" in self.inputs:
             validation_errors.extend(self.validate_extra_files())
+
+        # Validate action-gh-release-parameters JSON if present
+        if "action_gh_release_parameters" in self.inputs:
+            try:
+                json.loads(self.inputs["action_gh_release_parameters"])
+            except json.JSONDecodeError:
+                validation_errors.append(
+                    "'action-gh-release-parameters' must be valid JSON"
+                )
 
         return validation_errors
 

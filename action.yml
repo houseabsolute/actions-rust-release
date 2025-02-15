@@ -58,6 +58,16 @@ inputs:
       current working directory.
     default: "."
 
+  action-gh-release-parameters:
+    description: |
+      A JSON string containing parameters to pass to `softprops/action-gh-release@v2`. You can use
+      the `toJSON()` function in your action to make passing this easier.
+    default: "{}"
+
+  _force-release-for-testing:
+    description: |
+      This exists to let me test the release parts of this action.
+
 outputs:
   artifact-id:
     description: |
@@ -93,6 +103,7 @@ runs:
         INPUTS_extra-files: ${{ inputs.extra-files }}
         INPUTS_changes_file: ${{ inputs.changes-file }}
         INPUTS_working_directory: ${{ inputs.working-directory }}
+        INPUTS_action_gh_release_parameters: ${{ inputs.action-gh-release-parameters }}
 
     - name: Package as archive
       id: package-archive
@@ -114,8 +125,8 @@ runs:
 
         cd ${{ inputs.working-directory }}
         shasum --algorithm 256 \
-            "${{ steps.package-archive.outputs.archive-basename }}" \
-            > "${{ steps.package-archive.outputs.archive-basename }}.sha256"
+            "${{ steps.package-archive.outputs.archive-file }}" \
+            > "${{ steps.package-archive.outputs.archive-file }}.sha256"
       if: runner.os != 'Windows'
 
     - name: Install dos2unix and psutils on Windows
@@ -129,23 +140,46 @@ runs:
       run: |
         cd ${{ inputs.working-directory }}
         shasum --algorithm 256 `
-            "${{ steps.package-archive.outputs.archive-basename }}" `
-            > "${{ steps.package-archive.outputs.archive-basename }}.sha256"
-        dos2unix "${{ steps.package-archive.outputs.archive-basename }}.sha256"
+            "${{ steps.package-archive.outputs.archive-file }}" `
+            > "${{ steps.package-archive.outputs.archive-file }}.sha256"
+        dos2unix "${{ steps.package-archive.outputs.archive-file }}.sha256"
       if: runner.os == 'Windows'
 
     - name: Publish release artifact for run
       id: publish-release-artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ steps.package-archive.outputs.archive-basename }}
-        path: ${{ inputs.working-directory }}/${{ steps.package-archive.outputs.archive-basename }}*
+        name: ${{ steps.package-archive.outputs.archive-file }}
+        path: ${{ inputs.working-directory }}/${{ steps.package-archive.outputs.archive-file }}*
+
+    - name: Parse `action-gh-release-parameters` and set inputs for `softprops/action-gh-release`
+      id: action-gh-release-parameters
+      shell: bash
+      run: |
+        set -e
+        set -x
+        set -o pipefail
+
+        FAKE_TAG=""
+        if [ -n "${{ inputs._force-release-for-testing }}" ]; then
+            workflow_ref="${{ github.workflow_ref }}"
+            workflow_path="${workflow_ref%%@*}"
+            workflow_file=$(basename "$workflow_path")
+            timestamp=$( TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H-%M-%S )
+            FAKE_TAG="v-$timestamp-${{ github.ref_name }}-${{ github.sha }}-${{ github.run_number }}-$workflow_file"
+        fi
+        # This will get the inputs JSON from the `ACTION_GH_RELEASE_PARAMETERS` env var. This avoids
+        # any string interpolation issues, since the inputs will contain quotes.
+        parse-and-set-action-gh-release-parameters.py \
+            --working-directory "${{ inputs.working-directory }}" \
+            --archive-file "${{ steps.package-archive.outputs.archive-file }}" \
+            --changes-file "${{ inputs.changes-file }}" \
+            --fake-tag "$FAKE_TAG"
+      env:
+        ACTION_GH_RELEASE_PARAMETERS: ${{ inputs.action-gh-release-parameters }}
+      if: ( github.ref_type == 'tag' && startsWith( github.ref_name, inputs.release-tag-prefix ) ) || inputs._force-release-for-testing
 
     - name: Publish GitHub release
       uses: softprops/action-gh-release@v2
-      with:
-        draft: true
-        # The trailing "*" should pick up the checksum file.
-        files: ${{ inputs.working-directory }}/${{ steps.package-archive.outputs.archive-basename }}*
-        body_path: ${{ ( inputs.changes-file && format( '{0}/{1}', inputs.working-directory, inputs.changes-file ) ) || '' }}
-      if: github.ref_type == 'tag' && startsWith( github.ref_name, inputs.release-tag-prefix )
+      with: ${{ steps.action-gh-release-parameters.outputs }}
+      if: ( github.ref_type == 'tag' && startsWith( github.ref_name, inputs.release-tag-prefix ) ) || inputs._force-release-for-testing

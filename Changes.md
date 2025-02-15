@@ -2,6 +2,10 @@
 
 - Added validation for all input parameters. This should provide better errors when a required
   parameter is missing or a parameter is invalid (like referring to a path which does not exist).
+- Added a new `action-gh-release-parameters` input parameter. This takes a JSON string which can
+  contain most parameters accepted by the
+  [the `softprops/action-gh-release@v2` action](https://github.com/softprops/action-gh-release)
+  action.
 
 ## 0.0.5 - 2025-02-09
 

@@ -30,8 +30,14 @@ jobs:
           executable-name: test-project
           target: x86_64-unknown-linux-gnu
           changes-file: ""
-          # We don't want to actually do a release when running tests.
-          release-tag-prefix: "do-not-release"
+          # We always to do a release during tests, just to make sure that the release part of the
+          # action works.
+          _force-release-for-testing: true
+          action-gh-release-parameters: |
+            {
+                "repository": "houseabsolute/actions-rust-release-testing",
+                "token": "${{ secrets.ACTIONS_RUST_RELEASE_TESTING_TOKEN }}"
+            }
       - name: Install psutils on Windows
         run: choco install --ignore-checksums psutils
         if: runner.os == 'Windows'
