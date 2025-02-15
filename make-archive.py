@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# Mostly written by Claude.ai.
+
 import os
 import sys
 import glob
@@ -110,7 +112,7 @@ def gather_additional_files(
 ) -> List[str]:
     """Gather additional files to include in the archive."""
     if extra_files:
-        return extra_files.strip().split("\n")
+        return list(filter(None, map(str.strip, extra_files.splitlines())))
 
     files = []
     if changes_file:
@@ -126,8 +128,8 @@ def create_archive(
     td = None
     try:
         td = tempfile.mkdtemp()
-        # Copy files to temporary directory
-        for file in [f for f in found_files if f]:
+
+        for file in found_files:
             shutil.copy2(file, td)
 
         # Set executable permissions
@@ -174,7 +176,7 @@ def write_github_output(archive_file: str) -> None:
         sys.exit("GITHUB_OUTPUT environment variable not set.")
 
     with open(output_file, "a") as f:
-        print(f"archive-basename={Path(archive_file).name}", file=f)
+        print(f"archive-file={Path(archive_file).name}", file=f)
 
 
 def target_to_archive_name(target: str) -> str:

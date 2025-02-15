@@ -128,6 +128,17 @@ If you set this to an empty string, then no changelog file will be included.
 The current working directory in which all actions are performed. This defaults to the checked out
 repo's root. You use relative paths to set this to a subdirectory in the repo.
 
+### `action-gh-release-parameters`
+
+- **Required**: no
+
+This must be a string containing valid JSON. The JSON should be an object where the keys are the
+parameters for
+[the `softprops/action-gh-release@v2` action](https://github.com/softprops/action-gh-release).
+
+Note that the `actions-rust-release` action will always set the `draft` and `files` parameters, so
+any values you set for these parameter will be in the JSON string will be ignored.
+
 ## Outputs
 
 This action provides two outputs.
