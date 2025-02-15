@@ -21,14 +21,14 @@ jobs:
         with:
           command: build
           args: "--release"
-          target: x86_64-unknown-linux-musl
+          target: x86_64-unknown-linux-gnu
           GITHUB_TOKEN: ${{ github.token }}
       - name: Release
         id: release
         uses: ./
         with:
           executable-name: test-project
-          target: x86_64-unknown-linux-musl
+          target: x86_64-unknown-linux-gnu
           changes-file: ""
           # We don't want to actually do a release when running tests.
           release-tag-prefix: "do-not-release"
@@ -43,5 +43,5 @@ jobs:
               --executable-name test-project \
               --github-token "${{ github.token }}" \
               --repo houseabsolute/actions-rust-release \
-              --target "x86_64-unknown-linux-musl" \
+              --target "x86_64-unknown-linux-gnu" \
               --no-changes-file
