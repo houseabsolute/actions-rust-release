@@ -132,7 +132,7 @@ runs:
     - name: Install dos2unix and psutils on Windows
       shell: powershell
       run: |
-        choco install --ignore-checksums dos2unix psutils
+        choco install --ignore-checksums --limit-output dos2unix psutils
       if: runner.os == 'Windows'
 
     - name: Generate SHA-256 checksum file (Windows)
