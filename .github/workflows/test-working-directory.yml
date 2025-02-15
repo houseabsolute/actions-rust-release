@@ -12,11 +12,11 @@ jobs:
       matrix:
         platform:
           - platform_name: Linux-x86_64
-            os: ubuntu-20.04
+            os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             cache-cross-binary: true
           - platform_name: Linux-powerpc64
-            os: ubuntu-20.04
+            os: ubuntu-22.04
             target: powerpc64-unknown-linux-gnu
             cache-cross-binary: true
           - platform_name: Windows-x86_64

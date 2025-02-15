@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+from pathlib import Path
 import sys
 from typing import Any, Dict
 
@@ -11,7 +12,9 @@ def main():
     args = parse_arguments()
     validate_arguments(args)
 
-    archive_path = os.path.join(args.working_directory, args.archive_file)
+    # We always want to use forward slashes in the archive path, even on Windows, because otherwise
+    # the release action breaks (not sure why).
+    archive_path = str(Path(args.working_directory) / args.archive_file)
     if not os.path.isfile(archive_path):
         sys.exit(f"Archive file '{archive_path}' does not exist.")
 
@@ -19,6 +22,7 @@ def main():
     vars["draft"] = True
     # Appending a glob ensures we pick up the checksum file as well.
     vars["files"] = f"{archive_path}*"
+    vars["fail_on_unmatched_files"] = True
 
     if args.changes_file:
         vars["body_path"] = args.changes_file
