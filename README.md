@@ -126,7 +126,7 @@ If you set this to an empty string, then no changelog file will be included.
 - **Default**: `"."`
 
 The current working directory in which all actions are performed. This defaults to the checked out
-repo's root. You use relative paths to set this to a subdirectory in the repo.
+repo's root. You can use relative paths to set this to a subdirectory in the repo.
 
 ### `action-gh-release-parameters`
 
