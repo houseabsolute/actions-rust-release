@@ -108,16 +108,33 @@ def find_executable(executable_name: str, target: Optional[str]) -> List[str]:
 
 
 def gather_additional_files(
-    extra_files: Optional[str], changes_file: Optional[str]
+    extra_files_globs: Optional[str], changes_file: Optional[str]
 ) -> List[str]:
     """Gather additional files to include in the archive."""
-    if extra_files:
-        return list(filter(None, map(str.strip, extra_files.splitlines())))
+    if not extra_files_globs:
+        files = glob.glob("README*")
+        if changes_file:
+            files += [changes_file]
+        return files
 
-    files = []
-    if changes_file:
-        files.append(changes_file)
-    files.extend(glob.glob("README*"))
+    from os.path import isdir
+
+    globs = []
+    for g in extra_files_globs.splitlines():
+        g = g.strip()
+        if not g:
+            continue
+
+        if isdir(g):
+            globs.append(g.removesuffix("/") + "/**")
+        else:
+            globs.append(g)
+
+    # Collect all matching files
+    files = [changes_file] if changes_file else []
+    for g in globs:
+        files.extend(glob.glob(g, recursive=True))
+
     return files
 
 
@@ -202,6 +219,216 @@ def target_to_archive_name(target: str) -> str:
 
     os_name = os_mappings.get(os_name, os_name.capitalize())
     return f"{os_name}-{cpu}"
+
+
+class TestExtraFilesGlobs(unittest.TestCase):
+    """Test cases for handling extra files."""
+
+    from unittest.mock import patch
+    from collections import namedtuple
+
+    ExtraFilesTestDefinition = namedtuple(
+        "ExtraFilesTestDefinition", ["name", "arguments", "expected"]
+    )
+
+    @patch("os.path.isdir")
+    @patch("glob.glob")
+    def test_extra_files_empty(self, mocked_glob, mocked_isdir):
+        mocked_glob.side_effect = lambda g, *kargs, **kwargs: []
+        mocked_isdir.return_value = False
+
+        test_definitions = [
+            self.ExtraFilesTestDefinition(
+                name="empty arguments", arguments=("\n".join([]), None), expected=[]
+            ),
+            self.ExtraFilesTestDefinition(
+                name="keeps changes_file",
+                arguments=("\n".join([]), "CHANGES.md"),
+                expected=["CHANGES.md"],
+            ),
+        ]
+
+        for test_input in test_definitions:
+            with self.subTest(test_input.name):
+                self.assertCountEqual(
+                    gather_additional_files(*test_input.arguments), test_input.expected
+                )
+
+    @patch("os.path.isdir")
+    @patch("glob.glob")
+    def test_extra_files_literals(self, mocked_glob, mocked_isdir):
+        mocked_glob.side_effect = lambda g, *args, **kwargs: {
+            "README.md": ["README.md"],
+            "CHANGES.md": ["CHANGES.md"],
+            "dir/file.txt": ["dir/file.txt"],
+        }.get(g, [])
+        mocked_isdir.return_value = False
+
+        test_definitions = [
+            self.ExtraFilesTestDefinition(
+                name="keeps singular literal file",
+                arguments=("\n".join(["README.md"]), None),
+                expected=["README.md"],
+            ),
+            self.ExtraFilesTestDefinition(
+                name="keeps singular literal nested file",
+                arguments=("\n".join(["dir/file.txt"]), None),
+                expected=["dir/file.txt"],
+            ),
+            self.ExtraFilesTestDefinition(
+                name="combines singular literal nested file and changes file",
+                arguments=("\n".join(["dir/file.txt"]), "CHANGES.md"),
+                expected=["dir/file.txt", "CHANGES.md"],
+            ),
+            self.ExtraFilesTestDefinition(
+                "combines un- and nested file with changes file",
+                arguments=("\n".join(["dir/file.txt", "README.md"]), "CHANGES.md"),
+                expected=["README.md", "dir/file.txt", "CHANGES.md"],
+            ),
+        ]
+
+        for test_input in test_definitions:
+            with self.subTest(test_input.name):
+                self.assertCountEqual(
+                    gather_additional_files(*test_input.arguments), test_input.expected
+                )
+
+    @patch("os.path.isdir")
+    @patch("glob.glob")
+    def test_extra_files_directory(self, mocked_glob, mocked_isdir):
+        mocked_glob.side_effect = lambda g, *args, **kwargs: {
+            "README.md": ["README.md"],
+            "dir/file.txt": ["dir/file.txt"],
+            "directory/**": ["directory/file1.txt", "directory/file2.txt"],
+        }.get(g, [])
+        mocked_isdir.side_effect = lambda g, *args, **kwargs: g in [
+            "directory/",
+            "directory",
+            "dir",
+            "dir/",
+        ]
+
+        test_definitions = [
+            self.ExtraFilesTestDefinition(
+                name="handles directory (no trailing slash), combines with changes file",
+                arguments=("\n".join(["directory"]), "CHANGES.md"),
+                expected=["directory/file1.txt", "directory/file2.txt", "CHANGES.md"],
+            ),
+            self.ExtraFilesTestDefinition(
+                name="handles directory (trailing slash), combines with changes file",
+                arguments=("\n".join(["directory/"]), "CHANGES.md"),
+                expected=["directory/file1.txt", "directory/file2.txt", "CHANGES.md"],
+            ),
+        ]
+
+        for test_input in test_definitions:
+            with self.subTest(test_input.name):
+                self.assertCountEqual(
+                    gather_additional_files(*test_input.arguments), test_input.expected
+                )
+
+    @patch("os.path.isdir")
+    @patch("glob.glob")
+    def test_extra_files_globs(self, mocked_glob, mocked_isdir):
+        mocked_glob.side_effect = lambda g, *args, **kwargs: {
+            "README.md": ["README.md"],
+            "dir/**": ["dir/file1.txt", "dir/file2.txt"],
+            "dir/*/file*.txt": ["dir/a/file1.txt", "dir/b/file2.txt"],
+        }.get(g, [])
+        mocked_isdir.return_value = False
+
+        test_definitions = [
+            self.ExtraFilesTestDefinition(
+                name="handles globs, combines with changes file",
+                arguments=("\n".join(["dir/**"]), "CHANGES.md"),
+                expected=["dir/file1.txt", "dir/file2.txt", "CHANGES.md"],
+            ),
+            self.ExtraFilesTestDefinition(
+                name="handles globs, combines with literal files",
+                arguments=("\n".join(["README.md", "dir/**"]), None),
+                expected=["README.md", "dir/file1.txt", "dir/file2.txt"],
+            ),
+            self.ExtraFilesTestDefinition(
+                name="handles more complex globs, combines with changes file",
+                arguments=("\n".join(["dir/*/file*.txt"]), "CHANGES.md"),
+                expected=["dir/a/file1.txt", "dir/b/file2.txt", "CHANGES.md"],
+            ),
+        ]
+
+        for test_input in test_definitions:
+            with self.subTest(test_input.name):
+                self.assertCountEqual(
+                    gather_additional_files(*test_input.arguments), test_input.expected
+                )
+
+    @patch("os.path.isdir")
+    @patch("glob.glob")
+    def test_extra_files_excludes_hidden(self, mocked_glob, mocked_isdir):
+        # glob.glob by default doesn't match hidden files/dirs
+        mocked_glob.side_effect = lambda g, *args, **kwargs: {
+            "dir/**": ["dir/file1.txt", "dir/subdir/file2.txt"],  # No .hidden files
+            "**/*.txt": ["file.txt", "dir/visible.txt"],  # No .hidden.txt
+        }.get(g, [])
+        mocked_isdir.return_value = False
+
+        test_definitions = [
+            self.ExtraFilesTestDefinition(
+                name="recursive glob excludes hidden files and directories",
+                arguments=("\n".join(["dir/**"]), None),
+                expected=["dir/file1.txt", "dir/subdir/file2.txt"],
+            ),
+            self.ExtraFilesTestDefinition(
+                name="pattern glob excludes hidden files",
+                arguments=("\n".join(["**/*.txt"]), None),
+                expected=["file.txt", "dir/visible.txt"],
+            ),
+            self.ExtraFilesTestDefinition(
+                name="multiple globs exclude hidden files, includes changes file",
+                arguments=("\n".join(["dir/**", "**/*.txt"]), "CHANGES.md"),
+                expected=[
+                    "dir/file1.txt",
+                    "dir/subdir/file2.txt",
+                    "file.txt",
+                    "dir/visible.txt",
+                    "CHANGES.md",
+                ],
+            ),
+        ]
+
+        for test_input in test_definitions:
+            with self.subTest(test_input.name):
+                self.assertCountEqual(
+                    gather_additional_files(*test_input.arguments), test_input.expected
+                )
+
+    @patch("os.path.isdir")
+    @patch("glob.glob")
+    def test_extra_files_includes_explicit_hidden(self, mocked_glob, mocked_isdir):
+        # When explicitly specified, hidden files should be included
+        mocked_glob.side_effect = lambda g, *args, **kwargs: {
+            ".gitignore": [".gitignore"],
+            ".config/settings.json": [".config/settings.json"],
+        }.get(g, [])
+        mocked_isdir.return_value = False
+
+        test_definitions = [
+            self.ExtraFilesTestDefinition(
+                name="includes explicitly specified nested hidden file",
+                arguments=("\n".join([".config/settings.json"]), None),
+                expected=[".config/settings.json"],
+            ),
+            self.ExtraFilesTestDefinition(
+                name="combines explicit hidden files with changes file",
+                arguments=("\n".join([".gitignore"]), "CHANGES.md"),
+                expected=[".gitignore", "CHANGES.md"],
+            ),
+        ]
+
+        for test_input in test_definitions:
+            with self.subTest(test_input.name):
+                self.assertCountEqual(
+                    gather_additional_files(*test_input.arguments), test_input.expected
+                )
 
 
 class TestTargetToArchiveName(unittest.TestCase):

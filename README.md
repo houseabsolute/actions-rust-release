@@ -101,7 +101,12 @@ Either this input or the `target` input must be provided.
 - **Required**: no
 
 This is a list of additional files or globs to include in the archive files for a release. This
-should be provided as a newline-separate list.
+should be provided as a newline-separate list. This list can include directories as well as
+zglob-style recursive globs (`**`). If you specify a directory, this will be treated as if you wrote
+`directory/**`, meaning that the directory and all of its children will be included.
+
+Hidden files are _not_ included when you use a glob. To include a hidden path, you must specify the
+full path to the hidden files directly.
 
 Defaults to the file specified by the `changes-file` input and any file matching `README*` in the
 project root.

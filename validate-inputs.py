@@ -144,15 +144,10 @@ class InputValidator:
                                 validation_errors.append(
                                     f"Extra file '{file_path}' is not a file"
                                 )
-                    else:
-                        if not path.exists():
-                            validation_errors.append(
-                                f"Extra file '{file_path}' does not exist"
-                            )
-                        elif path.is_dir():
-                            validation_errors.append(
-                                f"Extra file '{file_path}' is a directory"
-                            )
+                    elif not path.exists():
+                        validation_errors.append(
+                            f"Extra file '{file_path}' does not exist"
+                        )
 
         return validation_errors
 
