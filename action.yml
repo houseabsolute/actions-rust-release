@@ -12,11 +12,11 @@ inputs:
       `mise`. This is required.
     required: true
 
-  release-tag-prefix:
+  release-tag-regex:
     description: |
-      The prefix for release tags. The default is "v", so that tags like "v1.2.3" trigger a
+      The for release tags. The default is "v.*", so that tags like "v1.2.3" trigger a
       release.
-    default: "v"
+    default: "^v.*"
 
   target:
     description: |
@@ -97,7 +97,7 @@ runs:
         validate-inputs.py "${{ github.workspace }}"
       env:
         INPUTS_executable_name: ${{ inputs.executable_name }}
-        INPUTS_release_tag_prefix: ${{ inputs.release-tag-prefix }}
+        INPUTS_release_tag_regex: ${{ inputs.release-tag-regex }}
         INPUTS_target: ${{ inputs.target }}
         INPUTS_archive_name: ${{ inputs.archive-name }}
         INPUTS_extra-files: ${{ inputs.extra-files }}
@@ -152,6 +152,16 @@ runs:
         name: ${{ steps.package-archive.outputs.archive-file }}
         path: ${{ inputs.working-directory }}/${{ steps.package-archive.outputs.archive-file }}*
 
+    - name: Determine whether a release should be published
+      id: determine-if-releasing
+      shell: bash
+      run: |
+        set-should-release.py
+      env:
+        release_tag_regex: ${{ inputs.release-tag-regex }}
+        ref_type: ${{ github.ref_type }}
+        ref_name: ${{ github.ref_name }}
+
     - name: Parse `action-gh-release-parameters` and set inputs for `softprops/action-gh-release`
       id: action-gh-release-parameters
       shell: bash
@@ -177,9 +187,9 @@ runs:
             --fake-tag "$FAKE_TAG"
       env:
         ACTION_GH_RELEASE_PARAMETERS: ${{ inputs.action-gh-release-parameters }}
-      if: ( github.ref_type == 'tag' && startsWith( github.ref_name, inputs.release-tag-prefix ) ) || inputs._force-release-for-testing
+      if: steps.determine-if-releasing.outputs.match == 'true' || inputs._force-release-for-testing
 
     - name: Publish GitHub release
       uses: softprops/action-gh-release@v2
       with: ${{ steps.action-gh-release-parameters.outputs }}
-      if: ( github.ref_type == 'tag' && startsWith( github.ref_name, inputs.release-tag-prefix ) ) || inputs._force-release-for-testing
+      if: steps.determine-if-releasing.outputs.match == 'true' || inputs._force-release-for-testing

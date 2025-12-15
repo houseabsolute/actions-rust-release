@@ -3,6 +3,7 @@
 import os
 import json
 from pathlib import Path
+import re
 from typing import Dict, List, Union
 import tempfile
 import unittest
@@ -60,12 +61,19 @@ class InputValidator:
                 "Either 'target' or 'archive-name' must be provided"
             )
 
-        # Validate release-tag-prefix if present
-        if (
-            "release_tag_prefix" in self.inputs
-            and not self.inputs["release_tag_prefix"]
-        ):
-            validation_errors.append("'release-tag-prefix' cannot be empty if provided")
+        # Validate release-tag-regex if present
+        if "release_tag_regex" in self.inputs:
+            if not self.inputs["release_tag_regex"]:
+                validation_errors.append(
+                    "'release-tag-regex' cannot be empty if provided"
+                )
+            else:
+                try:
+                    _ = re.compile(self.inputs["release_tag_regex"])
+                except re.error as e:
+                    validation_errors.append(
+                        f"Invalid regex pattern for 'release-tag-regex': {e}"
+                    )
 
         # Validate working directory if present
         working_dir = self.inputs.get("working_directory", ".")
@@ -195,7 +203,7 @@ class TestInputValidator(unittest.TestCase):
         inputs = {
             "executable-name": "my-app",
             "target": "x86_64-unknown-linux-gnu",
-            "release-tag-prefix": "v",
+            "release-tag-regex": "v.*",
             "working-directory": self.temp_dir,
         }
         self.setup_env(inputs)
@@ -203,6 +211,19 @@ class TestInputValidator(unittest.TestCase):
         validator = InputValidator(self.temp_dir)
         for key, value in validator.inputs.items():
             self.assertEqual(value, inputs[key.replace("_", "-")])
+
+    def test_validate_release_tag_regex(self) -> None:
+        """Test validation with missing executable-name."""
+        inputs = {
+            "executable-name": "my-app",
+            "target": "x86_64-unknown-linux-gnu",
+            "release-tag-regex": "[asd",
+            "working-directory": self.temp_dir,
+        }
+        self.setup_env(inputs)
+        validator = InputValidator(self.temp_dir)
+        errors = validator.validate()
+        self.assertTrue(any("release-tag-regex" in error for error in errors))
 
     def test_validate_missing_executable_name(self) -> None:
         """Test validation with missing executable-name."""

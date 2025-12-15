@@ -1,3 +1,9 @@
+## 1.0.0
+
+- Replaces the `release-tag-prefix` input with `release-tag-regex`. This provides a lot more
+  flexibility. The default, `^v.*`, means that if you weren't setting `release-tag-prefix` before,
+  then this action will still behave the same way.
+
 ## 0.0.6
 
 - Added validation for all input parameters. This should provide better errors when a required
