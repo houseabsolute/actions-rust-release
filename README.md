@@ -51,7 +51,7 @@ This action will do the following:
   file.
 - Create a SHA256 checksum file for the tarball or zip file using `shasum`.
 - Upload the archive and checksum files as artifacts for your workflow.
-- If this action is called for a tag that matches the specified prefix (defaults to `v`), then it
+- If this action is called for a tag that matches the specified regex (defaults to `v.*`), then it
   will also create/update a GitHub Release for this tag, attaching the archive and checksum files as
   release artifacts
 
@@ -70,12 +70,12 @@ This action takes the following parameters:
 The name of the executable that your project compiles to. In most cases, this is just the name of
 your project, like `cross` or `mise`.
 
-### `release-tag-prefix`
+### `release-tag-regex`
 
-- **Required**: no
-- **Default**: `"v"`
+- **Required**: yes
+- **Default**: `"v.*"`
 
-The prefix for release tags. The default is "v", so that tags like "v1.2.3" trigger a release.
+The regex for release tags. The default is "v.*", so that tags like "v1.2.3" trigger a release.
 
 ### `target`
 

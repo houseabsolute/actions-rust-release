@@ -60,12 +60,12 @@ class InputValidator:
                 "Either 'target' or 'archive-name' must be provided"
             )
 
-        # Validate release-tag-prefix if present
+        # Validate release-tag-regex if present
         if (
-            "release_tag_prefix" in self.inputs
-            and not self.inputs["release_tag_prefix"]
+            "release_tag_regex" in self.inputs
+            and not self.inputs["release_tag_regex"]
         ):
-            validation_errors.append("'release-tag-prefix' cannot be empty if provided")
+            validation_errors.append("'release-tag-regex' cannot be empty if provided")
 
         # Validate working directory if present
         working_dir = self.inputs.get("working_directory", ".")
@@ -195,7 +195,7 @@ class TestInputValidator(unittest.TestCase):
         inputs = {
             "executable-name": "my-app",
             "target": "x86_64-unknown-linux-gnu",
-            "release-tag-prefix": "v",
+            "release-tag-regex": "v.*",
             "working-directory": self.temp_dir,
         }
         self.setup_env(inputs)
