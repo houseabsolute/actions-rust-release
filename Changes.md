@@ -27,8 +27,8 @@
           executable-name: my-project
   ```
 
-  The `release-tag-prefix` and `action-gh-release-parameters` inputs now belong to the `publish`
-  action. The packaging action no longer accepts them.
+  The tag-matching and `action-gh-release-parameters` inputs now belong to the `publish` action. The
+  packaging action no longer accepts them.
 
 - The `publish` action takes a new `artifact-regex` input. It asks the GitHub API which artifacts
   belong to the current workflow run, and only downloads and releases the ones whose names match.
@@ -36,6 +36,11 @@
   packaging action. This keeps unrelated artifacts, like coverage reports or logs, out of your
   releases. Note that the job calling `publish` needs the `actions: read` permission in order to
   list the run's artifacts.
+
+- The `release-tag-prefix` input is replaced by `release-tag-regex`, which is a lot more flexible -
+  it allows things like releasing only on tags that look like a full version. The default, `^v.*`,
+  behaves the same way the old default prefix of `v` did. Implemented by @s3rius (Pavel Kirilin). GH
+  #16.
 
 - The packaging action has a new `archive-file` output containing the name of the archive it
   created.

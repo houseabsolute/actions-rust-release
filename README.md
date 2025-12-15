@@ -84,7 +84,7 @@ The `actions-rust-release` action will:
 It should work on any platform supported by GitHub Actions (Linux, macOS, Windows).
 
 The `actions-rust-release/publish` action only creates a release when it is called for a tag that
-matches the specified prefix (defaults to `v`). When it does, it will:
+matches the specified regex (defaults to `^v.*`). When it does, it will:
 
 - Ask the GitHub API for the artifacts belonging to the current workflow run and pick out the ones
   matching the `artifact-regex` input.
@@ -205,12 +205,21 @@ different executable out of your releases.
 If nothing matches, the action fails and lists the run's artifacts, rather than quietly publishing
 an empty release.
 
-### `release-tag-prefix`
+### `release-tag-regex`
 
 - **Required**: no
-- **Default**: `"v"`
+- **Default**: `"^v.*"`
 
-The prefix for release tags. The default is "v", so that tags like "v1.2.3" trigger a release.
+A [Python regex](https://docs.python.org/3/library/re.html#regular-expression-syntax) matching the
+tags which should produce a release. It is matched against the tag name with `re.match`, so it is
+anchored at the start whether or not you write a `^`.
+
+The default, `^v.*`, means tags like `v1.2.3` produce a release and nothing else does. A regex is
+more flexible than matching a prefix — it lets you do things like release only on tags that look
+like a full version, with something along the lines of `^v\d+\.\d+\.\d+$`.
+
+This is only consulted for tags. A push to a branch never produces a release, whatever the regex
+says.
 
 ### `changes-file`
 

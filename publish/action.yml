@@ -31,11 +31,15 @@ inputs:
 
       Either this input or the `executable-name` input must be provided.
 
-  release-tag-prefix:
+  release-tag-regex:
     description: |
-      The prefix for release tags. The default is "v", so that tags like "v1.2.3" trigger a
-      release.
-    default: "v"
+      A Python regex matching the tags which should produce a release. It is matched against the tag
+      name with `re.match`, so it is anchored at the start whether or not you write a `^`.
+
+      The default, `^v.*`, means that tags like "v1.2.3" produce a release and nothing else does.
+
+      This is only consulted for tags. A push to a branch never produces a release.
+    default: "^v.*"
 
   changes-file:
     description: |
@@ -94,10 +98,23 @@ runs:
       env:
         INPUTS_executable_name: ${{ inputs.executable-name }}
         INPUTS_artifact_regex: ${{ inputs.artifact-regex }}
-        INPUTS_release_tag_prefix: ${{ inputs.release-tag-prefix }}
+        INPUTS_release_tag_regex: ${{ inputs.release-tag-regex }}
         INPUTS_changes_file: ${{ inputs.changes-file }}
         INPUTS_working_directory: ${{ inputs.working-directory }}
         INPUTS_action_gh_release_parameters: ${{ inputs.action-gh-release-parameters }}
+
+    - name: Determine whether a release should be published
+      id: determine-if-releasing
+      shell: bash
+      run: |
+        set-should-release.py
+      env:
+        # The regex comes from an env var to avoid any string interpolation issues, since it will
+        # contain backslashes and quotes.
+        RELEASE_TAG_REGEX: ${{ inputs.release-tag-regex }}
+        REF_TYPE: ${{ github.ref_type }}
+        REF_NAME: ${{ github.ref_name }}
+        FORCE_RELEASE: ${{ inputs._force-release-for-testing }}
 
     - name: Find the release artifacts for this run
       id: find-artifacts
@@ -119,9 +136,7 @@ runs:
       env:
         ARTIFACT_REGEX: ${{ inputs.artifact-regex }}
         GITHUB_TOKEN: ${{ github.token }}
-      if:
-        ( github.ref_type == 'tag' && startsWith( github.ref_name, inputs.release-tag-prefix ) ) ||
-        inputs._force-release-for-testing
+      if: steps.determine-if-releasing.outputs.should-release == 'true'
 
     - name: Download the release artifacts
       uses: actions/download-artifact@v8
@@ -159,13 +174,9 @@ runs:
             --fake-tag "$FAKE_TAG"
       env:
         ACTION_GH_RELEASE_PARAMETERS: ${{ inputs.action-gh-release-parameters }}
-      if:
-        ( github.ref_type == 'tag' && startsWith( github.ref_name, inputs.release-tag-prefix ) ) ||
-        inputs._force-release-for-testing
+      if: steps.determine-if-releasing.outputs.should-release == 'true'
 
     - name: Publish GitHub release
       uses: softprops/action-gh-release@v3
       with: ${{ steps.action-gh-release-parameters.outputs }}
-      if:
-        ( github.ref_type == 'tag' && startsWith( github.ref_name, inputs.release-tag-prefix ) ) ||
-        inputs._force-release-for-testing
+      if: steps.determine-if-releasing.outputs.should-release == 'true'

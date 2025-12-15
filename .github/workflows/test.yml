@@ -96,4 +96,5 @@ jobs:
           set -e
           ./validate-inputs.py --test
           ./find-release-artifacts.py --test
+          ./set-should-release.py --test
           ./make-archive.py --test
