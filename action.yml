@@ -177,9 +177,13 @@ runs:
             --fake-tag "$FAKE_TAG"
       env:
         ACTION_GH_RELEASE_PARAMETERS: ${{ inputs.action-gh-release-parameters }}
-      if: ( github.ref_type == 'tag' && startsWith( github.ref_name, inputs.release-tag-prefix ) ) || inputs._force-release-for-testing
+      if:
+        ( github.ref_type == 'tag' && startsWith( github.ref_name, inputs.release-tag-prefix ) ) ||
+        inputs._force-release-for-testing
 
     - name: Publish GitHub release
       uses: softprops/action-gh-release@v2
       with: ${{ steps.action-gh-release-parameters.outputs }}
-      if: ( github.ref_type == 'tag' && startsWith( github.ref_name, inputs.release-tag-prefix ) ) || inputs._force-release-for-testing
+      if:
+        ( github.ref_type == 'tag' && startsWith( github.ref_name, inputs.release-tag-prefix ) ) ||
+        inputs._force-release-for-testing
