@@ -27,7 +27,7 @@ jobs:
     runs-on: ${{ matrix.platform.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
       - name: Build executable
         uses: houseabsolute/actions-rust-cross@v0
         with:
