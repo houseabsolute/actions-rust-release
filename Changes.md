@@ -1,4 +1,9 @@
-## 0.0.6
+## 0.0.7 2026-03-15
+
+- Updated various actions used by this action so that it no longer triggers warnings about Node.js
+  20 deprecation.
+
+## 0.0.6 2025-02-15
 
 - Added validation for all input parameters. This should provide better errors when a required
   parameter is missing or a parameter is invalid (like referring to a path which does not exist).
