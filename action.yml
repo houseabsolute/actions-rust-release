@@ -147,7 +147,7 @@ runs:
 
     - name: Publish release artifact for run
       id: publish-release-artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ steps.package-archive.outputs.archive-file }}
         path: ${{ inputs.working-directory }}/${{ steps.package-archive.outputs.archive-file }}*
