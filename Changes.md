@@ -1,4 +1,4 @@
-## 0.0.8
+## 0.0.8 - 2026-06-21
 
 - Update all actions used by this action to get rid of Node.js deprecation warnings. GH #19.
   Reported by @simonhollingshead (Simon Hollingshead).
