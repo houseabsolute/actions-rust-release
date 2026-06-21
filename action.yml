@@ -147,7 +147,7 @@ runs:
 
     - name: Publish release artifact for run
       id: publish-release-artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ steps.package-archive.outputs.archive-file }}
         path: ${{ inputs.working-directory }}/${{ steps.package-archive.outputs.archive-file }}*
@@ -182,7 +182,7 @@ runs:
         inputs._force-release-for-testing
 
     - name: Publish GitHub release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with: ${{ steps.action-gh-release-parameters.outputs }}
       if:
         ( github.ref_type == 'tag' && startsWith( github.ref_name, inputs.release-tag-prefix ) ) ||
