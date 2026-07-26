@@ -96,11 +96,11 @@ runs:
       run: |
         validate-inputs.py "${{ github.workspace }}"
       env:
-        INPUTS_executable_name: ${{ inputs.executable_name }}
+        INPUTS_executable_name: ${{ inputs.executable-name }}
         INPUTS_release_tag_prefix: ${{ inputs.release-tag-prefix }}
         INPUTS_target: ${{ inputs.target }}
         INPUTS_archive_name: ${{ inputs.archive-name }}
-        INPUTS_extra-files: ${{ inputs.extra-files }}
+        INPUTS_extra_files: ${{ inputs.extra-files }}
         INPUTS_changes_file: ${{ inputs.changes-file }}
         INPUTS_working_directory: ${{ inputs.working-directory }}
         INPUTS_action_gh_release_parameters: ${{ inputs.action-gh-release-parameters }}

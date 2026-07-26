@@ -1,3 +1,13 @@
+## 0.0.9 - 2026-07-26
+
+- The input validation step passed `inputs.executable_name` instead of `inputs.executable-name`, so
+  the `executable-name` value never reached the validator and the check that it was set could never
+  fire. Similarly, the `extra-files` value was passed in an environment variable named
+  `INPUTS_extra-files`, which the validator never looked at, so `extra-files` was never validated.
+- The validator checked whether inputs were _present_ rather than whether they had a value. Since
+  the action always sets every one of these environment variables, even for inputs the caller
+  omitted, none of those checks could ever fail. They now check the value.
+
 ## 0.0.8 - 2026-06-21
 
 - Update all actions used by this action to get rid of Node.js deprecation warnings. GH #19.

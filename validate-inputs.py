@@ -51,11 +51,11 @@ class InputValidator:
         validation_errors: List[str] = []
 
         # Check for required executable-name parameter
-        if "executable_name" not in self.inputs:
+        if not self.inputs.get("executable_name"):
             validation_errors.append("'executable-name' is a required parameter")
 
         # Validate that either target or archive-name is present
-        if "target" not in self.inputs and "archive_name" not in self.inputs:
+        if not self.inputs.get("target") and not self.inputs.get("archive_name"):
             validation_errors.append(
                 "Either 'target' or 'archive-name' must be provided"
             )
@@ -96,11 +96,11 @@ class InputValidator:
                 )
 
         # Validate extra-files if present
-        if "extra_files" in self.inputs:
+        if self.inputs.get("extra_files"):
             validation_errors.extend(self.validate_extra_files())
 
         # Validate action-gh-release-parameters JSON if present
-        if "action_gh_release_parameters" in self.inputs:
+        if self.inputs.get("action_gh_release_parameters"):
             try:
                 json.loads(self.inputs["action_gh_release_parameters"])
             except json.JSONDecodeError:
@@ -212,6 +212,22 @@ class TestInputValidator(unittest.TestCase):
         validator = InputValidator(self.temp_dir)
         errors = validator.validate()
         self.assertTrue(any("executable-name" in error for error in errors))
+
+    def test_validate_empty_executable_name(self) -> None:
+        """An empty value is as good as missing - the action always sets the env var."""
+        self.setup_env(
+            {
+                "executable-name": "",
+                "target": "",
+                "archive-name": "",
+                "extra-files": "",
+                "working-directory": self.temp_dir,
+            }
+        )
+        validator = InputValidator(self.temp_dir)
+        errors = validator.validate()
+        self.assertTrue(any("executable-name" in error for error in errors))
+        self.assertTrue(any("archive-name" in error for error in errors))
 
     def test_validate_missing_target_and_archive_name(self) -> None:
         """Test validation with missing target and archive-name."""
