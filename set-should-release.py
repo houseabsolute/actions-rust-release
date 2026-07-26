@@ -67,9 +67,22 @@ def should_release_for(
 class TestShouldRelease(unittest.TestCase):
     """Unit tests for should_release_for."""
 
-    def test_default_regex_matches_version_tags(self) -> None:
-        self.assertTrue(should_release_for("tag", "v1.2.3", "^v.*", False))
-        self.assertFalse(should_release_for("tag", "1.2.3", "^v.*", False))
+    # Kept in sync with the `release-tag-regex` default in publish/action.yml.
+    DEFAULT_REGEX = r"^v?\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$"
+
+    def test_default_regex_matches_semantic_versions(self) -> None:
+        for tag in ("v1.2.3", "1.2.3", "v1.2.3-rc1", "v1.2.3+build4", "v10.20.30"):
+            with self.subTest(tag=tag):
+                self.assertTrue(
+                    should_release_for("tag", tag, self.DEFAULT_REGEX, False)
+                )
+
+    def test_default_regex_rejects_other_tags(self) -> None:
+        for tag in ("nightly", "latest", "v1.2", "vibes", "v-2026-07-26", "v1.2.3.4"):
+            with self.subTest(tag=tag):
+                self.assertFalse(
+                    should_release_for("tag", tag, self.DEFAULT_REGEX, False)
+                )
 
     def test_branches_never_release(self) -> None:
         # Even a branch whose name the regex would happily match.

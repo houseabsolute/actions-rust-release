@@ -36,11 +36,12 @@ inputs:
       A Python regex matching the tags which should produce a release. It is matched against the tag
       name with `re.match`, so it is anchored at the start whether or not you write a `^`.
 
-      The default, `^v.*`, matches every tag starting with "v", so tags like "v1.2.3" produce a
-      release.
+      The default matches a semantic version with an optional leading "v", so "v1.2.3", "1.2.3",
+      "v1.2.3-rc1", and "v1.2.3+build4" all produce a release, while a tag like "nightly" or
+      "v-2026-07-26" does not.
 
       This is only consulted for tags. A push to a branch never produces a release.
-    default: "^v.*"
+    default: '^v?\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
 
   changes-file:
     description: |

@@ -84,7 +84,8 @@ The `actions-rust-release` action will:
 It should work on any platform supported by GitHub Actions (Linux, macOS, Windows).
 
 The `actions-rust-release/publish` action only creates a release when it is called for a tag that
-matches the specified regex (defaults to `^v.*`). When it does, it will:
+matches the `release-tag-regex` (a semantic version, like `v1.2.3`, by default). When it does, it
+will:
 
 - Ask the GitHub API for the artifacts belonging to the current workflow run and pick out the ones
   matching the `artifact-regex` input.
@@ -208,16 +209,32 @@ an empty release.
 ### `release-tag-regex`
 
 - **Required**: no
-- **Default**: `"^v.*"`
+- **Default**: `^v?\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$`
 
 A [Python regex](https://docs.python.org/3/library/re.html#regular-expression-syntax) matching the
 tags which should produce a release. It is matched against the tag name with `re.match`, so it is
 anchored at the start whether or not you write a `^`.
 
-The default, `^v.*`, matches every tag starting with `v`, so `v1.2.3` produces a release — but so
-would `vibes`. A regex is more flexible than matching a prefix, so you can be stricter than that if
-you want: `^v\d+\.\d+\.\d+$` releases only on tags that look like a full version. Note the trailing
-`$`; without it, `v1.2.3-rc1` matches too, since only the start of the tag is anchored.
+The default matches a [semantic version](https://semver.org/) with an optional leading `v`. All of
+these produce a release:
+
+| Tag             |                             |
+| --------------- | --------------------------- |
+| `v1.2.3`        | the usual case              |
+| `1.2.3`         | the leading `v` is optional |
+| `v1.2.3-rc1`    | a pre-release               |
+| `v1.2.3+build4` | with build metadata         |
+
+While these do not:
+
+| Tag       |                      |
+| --------- | -------------------- |
+| `nightly` | not a version at all |
+| `v1.2`    | not three components |
+| `latest`  | a moving tag         |
+
+Set your own regex if that isn't what you want. `^v\d+\.\d+\.\d+$` refuses pre-releases; `.*`
+releases on every tag.
 
 This is only consulted for tags. A push to a branch never produces a release, whatever the regex
 says.

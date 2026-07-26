@@ -38,9 +38,13 @@
   list the run's artifacts.
 
 - The `release-tag-prefix` input is replaced by `release-tag-regex`, which is a lot more flexible -
-  it allows things like releasing only on tags that look like a full version. The default, `^v.*`,
-  behaves the same way the old default prefix of `v` did. Implemented by @s3rius (Pavel Kirilin). GH
-  #16.
+  it allows things like releasing on every tag, or only on tags without a pre-release suffix.
+  Implemented by @s3rius (Pavel Kirilin). GH #16.
+
+  The default is `^v?\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$`, which matches a semantic
+  version with an optional leading `v`. This is narrower than the old default, which released on any
+  tag starting with `v`. If you tag releases as something other than a version - `nightly`, or a
+  date - you will need to set this input to keep releasing on those tags.
 
 - The packaging action has a new `archive-file` output containing the name of the archive it
   created.
