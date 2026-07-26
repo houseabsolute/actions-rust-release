@@ -1,0 +1,95 @@
+name: Test artifact-regex Parameter
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  package:
+    name: Package one target and upload a decoy artifact
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Copy test project to root
+        shell: bash
+        run: |
+          cp -a test-project/* .
+          rm -fr test-project
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v1
+        with:
+          command: build
+          args: "--release"
+          target: x86_64-unknown-linux-gnu
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Package
+        id: package
+        uses: ./
+        with:
+          executable-name: test-project
+          target: x86_64-unknown-linux-gnu
+      # This is the sort of artifact that a real workflow uploads alongside its release archives.
+      # It must never end up attached to a release.
+      - name: Upload a decoy artifact
+        shell: bash
+        run: echo "not a release archive" > decoy.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: test-project-coverage-report
+          path: decoy.txt
+
+  release:
+    name: Publish only the archives
+    needs: package
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Publish release
+        id: publish
+        uses: ./publish
+        with:
+          executable-name: test-project
+          # We always do a release during tests, just to make sure that the release part of the
+          # action works.
+          _force-release-for-testing: true
+          action-gh-release-parameters: |
+            {
+                "repository": "houseabsolute/actions-rust-release-testing",
+                "token": "${{ secrets.ACTIONS_RUST_RELEASE_TESTING_TOKEN }}"
+            }
+      # The publish action tells us which artifacts it picked, so we can check that the decoy was
+      # left behind without having to inspect the release itself.
+      - name: Check that only the archive was released
+        shell: bash
+        run: |
+          set -e
+          set -o pipefail
+
+          ids="${{ steps.publish.outputs.artifact-ids }}"
+          echo "Released artifact IDs: $ids"
+
+          count=$(echo "$ids" | tr ',' '\n' | grep -c . || true)
+          if [ "$count" -ne 1 ]; then
+              echo "Expected exactly 1 released artifact, but got $count."
+              exit 1
+          fi
+
+          decoy_id=$(
+              gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
+                  --jq '.artifacts[] | select(.name == "test-project-coverage-report") | .id'
+          )
+          if [ -z "$decoy_id" ]; then
+              echo "Could not find the decoy artifact, so this test proves nothing."
+              exit 1
+          fi
+          if [ "$ids" = "$decoy_id" ]; then
+              echo "The decoy artifact was released."
+              exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}

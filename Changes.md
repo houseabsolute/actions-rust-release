@@ -1,3 +1,60 @@
+## 1.0.0 - unreleased
+
+- **Breaking change**: Creating the GitHub release has moved out of this action and into a new
+  `houseabsolute/actions-rust-release/publish` action. This action now only packages your executable
+  and uploads it as a workflow artifact.
+
+  This exists because almost everyone calls this action from inside a build matrix. When the same
+  action both packaged and released, a matrix leg that finished early would publish its archive
+  while other legs were still building — or failing — so a release missing one platform's executable
+  could go public. Every leg of the matrix also raced to create the same release.
+
+  To upgrade, drop the release-specific inputs from your existing invocation and add a job which
+  runs after all of your build jobs:
+
+  ```yaml
+  release:
+    name: Create GitHub release
+    needs: package
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: houseabsolute/actions-rust-release/publish@v1
+        with:
+          executable-name: my-project
+  ```
+
+  The `release-tag-prefix` and `action-gh-release-parameters` inputs now belong to the `publish`
+  action. The packaging action no longer accepts them.
+
+- The `publish` action takes a new `artifact-regex` input. It asks the GitHub API which artifacts
+  belong to the current workflow run, and only downloads and releases the ones whose names match.
+  The default, `\A<executable-name>.*\.(tar\.[a-z]+|zip)\Z`, matches the archives created by the
+  packaging action. This keeps unrelated artifacts, like coverage reports or logs, out of your
+  releases. Note that the job calling `publish` needs the `actions: read` permission in order to
+  list the run's artifacts.
+
+- The packaging action has a new `archive-file` output containing the name of the archive it
+  created.
+
+- The `changes-file` used as the release description is now looked for in the `working-directory`.
+  Previously it was looked for in the repo root, regardless of the `working-directory` input.
+
+- Fixed a bug where boolean parameters passed to `softprops/action-gh-release` were written as
+  Python's `True` rather than `true`. That action compares its inputs against the string `"true"`,
+  so every boolean this action set was silently ignored, including `fail_on_unmatched_files`.
+
+  This action used to force `draft` on, but because of the bug above it never actually took effect,
+  and releases have always been published directly. Rather than change that behavior now, this
+  action no longer sets `draft` at all. If you want draft releases, pass `"draft": true` in
+  `action-gh-release-parameters` — which now works.
+
+- Multi-line values in `action-gh-release-parameters`, such as `body`, no longer corrupt the
+  parameters passed to `softprops/action-gh-release`.
+
 ## 0.0.9 - 2026-07-26
 
 - The input validation step passed `inputs.executable_name` instead of `inputs.executable-name`, so

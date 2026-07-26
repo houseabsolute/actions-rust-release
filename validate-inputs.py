@@ -1,19 +1,29 @@
 #!/usr/bin/env python3
 
+import argparse
 import glob
 import os
 import json
 from pathlib import Path
+import re
 from typing import Dict, List, Union
 import tempfile
 import unittest
+
+PACKAGE_MODE = "package"
+PUBLISH_MODE = "publish"
 
 
 def main() -> None:
     """Main function for running the validator."""
     import sys
 
-    validator = InputValidator(sys.argv[1])
+    parser = argparse.ArgumentParser()
+    parser.add_argument("repo_root")
+    parser.add_argument("--mode", choices=[PACKAGE_MODE, PUBLISH_MODE], required=True)
+    args = parser.parse_args()
+
+    validator = InputValidator(args.repo_root, args.mode)
     errors = validator.validate()
 
     if not errors:
@@ -28,14 +38,16 @@ def main() -> None:
 class InputValidator:
     """Validate inputs for a GitHub Action that handles Rust binary releases."""
 
-    def __init__(self, repo_root: Union[str, Path]):
+    def __init__(self, repo_root: Union[str, Path], mode: str = PACKAGE_MODE):
         """
         Create a new InputValidator by collecting environment variables.
 
         Args:
             repo_root: Path to the repository root
+            mode: Which action's inputs are being validated, "package" or "publish"
         """
         self.repo_root = Path(repo_root)
+        self.mode = mode
         self.inputs: Dict[str, str] = {
             key.replace("INPUTS_", "").lower(): value
             for key, value in os.environ.items()
@@ -51,15 +63,33 @@ class InputValidator:
         """
         validation_errors: List[str] = []
 
-        # Check for required executable-name parameter
-        if not self.inputs.get("executable_name"):
-            validation_errors.append("'executable-name' is a required parameter")
+        if self.mode == PACKAGE_MODE:
+            # Check for required executable-name parameter
+            if not self.inputs.get("executable_name"):
+                validation_errors.append("'executable-name' is a required parameter")
 
-        # Validate that either target or archive-name is present
-        if not self.inputs.get("target") and not self.inputs.get("archive_name"):
-            validation_errors.append(
-                "Either 'target' or 'archive-name' must be provided"
-            )
+            # Validate that either target or archive-name is present
+            if not self.inputs.get("target") and not self.inputs.get("archive_name"):
+                validation_errors.append(
+                    "Either 'target' or 'archive-name' must be provided"
+                )
+        else:
+            # The publish action only needs the executable name in order to construct a default
+            # regex, so an explicit regex makes it unnecessary.
+            if not self.inputs.get("executable_name") and not self.inputs.get(
+                "artifact_regex"
+            ):
+                validation_errors.append(
+                    "Either 'executable-name' or 'artifact-regex' must be provided"
+                )
+
+            if self.inputs.get("artifact_regex"):
+                try:
+                    re.compile(self.inputs["artifact_regex"])
+                except re.error as e:
+                    validation_errors.append(
+                        f"'artifact-regex' is not a valid regex: {e}"
+                    )
 
         # Validate release-tag-prefix if present
         if (
@@ -364,6 +394,31 @@ class TestInputValidator(unittest.TestCase):
         validator = InputValidator(self.temp_dir)
         errors = validator.validate()
         self.assertTrue("not found in working directory" in error for error in errors)
+
+    def test_publish_mode_needs_name_or_regex(self) -> None:
+        """Publish mode accepts either executable-name or artifact-regex."""
+        self.setup_env({"working-directory": self.temp_dir})
+        errors = InputValidator(self.temp_dir, PUBLISH_MODE).validate()
+        self.assertTrue(any("artifact-regex" in error for error in errors))
+
+        self.setup_env(
+            {"working-directory": self.temp_dir, "artifact-regex": r"\Aubi-.+\Z"}
+        )
+        self.assertFalse(InputValidator(self.temp_dir, PUBLISH_MODE).validate())
+
+        self.setup_env({"working-directory": self.temp_dir, "executable-name": "ubi"})
+        self.assertFalse(InputValidator(self.temp_dir, PUBLISH_MODE).validate())
+
+    def test_publish_mode_ignores_package_inputs(self) -> None:
+        """Publish mode does not require target or archive-name."""
+        self.setup_env({"executable-name": "ubi", "working-directory": self.temp_dir})
+        self.assertFalse(InputValidator(self.temp_dir, PUBLISH_MODE).validate())
+
+    def test_publish_mode_invalid_regex(self) -> None:
+        """Publish mode rejects a regex that does not compile."""
+        self.setup_env({"working-directory": self.temp_dir, "artifact-regex": "a["})
+        errors = InputValidator(self.temp_dir, PUBLISH_MODE).validate()
+        self.assertTrue(any("not a valid regex" in error for error in errors))
 
 
 if __name__ == "__main__":

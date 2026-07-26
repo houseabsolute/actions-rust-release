@@ -43,21 +43,13 @@ jobs:
           working-directory: sub-project
           target: ${{ matrix.platform.target }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Release sub project
+      - name: Package sub project
         id: release
         uses: ./
         with:
           executable-name: sub-project
           working-directory: sub-project
           target: ${{ matrix.platform.target }}
-          # We always to do a release during tests, just to make sure that the release part of the
-          # action works.
-          _force-release-for-testing: true
-          action-gh-release-parameters: |
-            {
-                "repository": "houseabsolute/actions-rust-release-testing",
-                "token": "${{ secrets.ACTIONS_RUST_RELEASE_TESTING_TOKEN }}"
-            }
       - name: Install psutils on Windows
         run: choco install --ignore-checksums psutils
         if: runner.os == 'Windows'
@@ -70,3 +62,33 @@ jobs:
               --github-token "${{ github.token }}" \
               --repo houseabsolute/actions-rust-release \
               --target "${{ matrix.platform.target }}"
+
+  release:
+    name: Publish the sub project release
+    needs: test
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Copy test project to root
+        shell: bash
+        run: |
+          cp -a test-project/* .
+          rm -fr test-project
+      - name: Publish release
+        uses: ./publish
+        with:
+          executable-name: sub-project
+          # The changes file for this release lives in the sub project, not the repo root.
+          working-directory: sub-project
+          # We always do a release during tests, just to make sure that the release part of the
+          # action works.
+          _force-release-for-testing: true
+          action-gh-release-parameters: |
+            {
+                "repository": "houseabsolute/actions-rust-release-testing",
+                "token": "${{ secrets.ACTIONS_RUST_RELEASE_TESTING_TOKEN }}"
+            }

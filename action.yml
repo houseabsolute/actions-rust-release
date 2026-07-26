@@ -1,22 +1,18 @@
-name: "Release Rust Project Binaries as GitHub Releases"
+name: "Package Rust Project Binaries for GitHub Releases"
 author: "Dave Rolsky <autarch@urth.org>"
 branding:
   icon: home
   color: gray-dark
 description: |
-  This action provides tooling for releasing binaries from Rust projects as GitHub releases.
+  This action packages binaries from Rust projects into archives and uploads them as workflow
+  artifacts. Use the `houseabsolute/actions-rust-release/publish` action to turn those artifacts
+  into a GitHub release.
 inputs:
   executable-name:
     description: |
       The name of the executable. In most cases, this is just the name of your project, like `cross` or
       `mise`. This is required.
     required: true
-
-  release-tag-prefix:
-    description: |
-      The prefix for release tags. The default is "v", so that tags like "v1.2.3" trigger a
-      release.
-    default: "v"
 
   target:
     description: |
@@ -58,17 +54,12 @@ inputs:
       current working directory.
     default: "."
 
-  action-gh-release-parameters:
-    description: |
-      A JSON string containing parameters to pass to `softprops/action-gh-release@v2`. You can use
-      the `toJSON()` function in your action to make passing this easier.
-    default: "{}"
-
-  _force-release-for-testing:
-    description: |
-      This exists to let me test the release parts of this action.
-
 outputs:
+  archive-file:
+    description: |
+      This is the name of the archive file created by this action, without any directory.
+    value: ${{ steps.package-archive.outputs.archive-file }}
+
   artifact-id:
     description: |
       This is the ID of the artifact created by this action.
@@ -94,16 +85,14 @@ runs:
     - name: Validate inputs
       shell: bash
       run: |
-        validate-inputs.py "${{ github.workspace }}"
+        validate-inputs.py --mode package "${{ github.workspace }}"
       env:
         INPUTS_executable_name: ${{ inputs.executable-name }}
-        INPUTS_release_tag_prefix: ${{ inputs.release-tag-prefix }}
         INPUTS_target: ${{ inputs.target }}
         INPUTS_archive_name: ${{ inputs.archive-name }}
         INPUTS_extra_files: ${{ inputs.extra-files }}
         INPUTS_changes_file: ${{ inputs.changes-file }}
         INPUTS_working_directory: ${{ inputs.working-directory }}
-        INPUTS_action_gh_release_parameters: ${{ inputs.action-gh-release-parameters }}
 
     - name: Package as archive
       id: package-archive
@@ -151,39 +140,3 @@ runs:
       with:
         name: ${{ steps.package-archive.outputs.archive-file }}
         path: ${{ inputs.working-directory }}/${{ steps.package-archive.outputs.archive-file }}*
-
-    - name: Parse `action-gh-release-parameters` and set inputs for `softprops/action-gh-release`
-      id: action-gh-release-parameters
-      shell: bash
-      run: |
-        set -e
-        set -x
-        set -o pipefail
-
-        FAKE_TAG=""
-        if [ -n "${{ inputs._force-release-for-testing }}" ]; then
-            workflow_ref="${{ github.workflow_ref }}"
-            workflow_path="${workflow_ref%%@*}"
-            workflow_file=$(basename "$workflow_path")
-            timestamp=$( TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H-%M-%S )
-            FAKE_TAG="v-$timestamp-${{ github.ref_name }}-${{ github.sha }}-${{ github.run_number }}-$workflow_file"
-        fi
-        # This will get the inputs JSON from the `ACTION_GH_RELEASE_PARAMETERS` env var. This avoids
-        # any string interpolation issues, since the inputs will contain quotes.
-        parse-and-set-action-gh-release-parameters.py \
-            --working-directory "${{ inputs.working-directory }}" \
-            --archive-file "${{ steps.package-archive.outputs.archive-file }}" \
-            --changes-file "${{ inputs.changes-file }}" \
-            --fake-tag "$FAKE_TAG"
-      env:
-        ACTION_GH_RELEASE_PARAMETERS: ${{ inputs.action-gh-release-parameters }}
-      if:
-        ( github.ref_type == 'tag' && startsWith( github.ref_name, inputs.release-tag-prefix ) ) ||
-        inputs._force-release-for-testing
-
-    - name: Publish GitHub release
-      uses: softprops/action-gh-release@v3
-      with: ${{ steps.action-gh-release-parameters.outputs }}
-      if:
-        ( github.ref_type == 'tag' && startsWith( github.ref_name, inputs.release-tag-prefix ) ) ||
-        inputs._force-release-for-testing

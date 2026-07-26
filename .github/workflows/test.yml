@@ -42,20 +42,12 @@ jobs:
           args: "--release"
           target: ${{ matrix.platform.target }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Release
+      - name: Package
         id: release
         uses: ./
         with:
           executable-name: test-project
           target: ${{ matrix.platform.target }}
-          # We always to do a release during tests, just to make sure that the release part of the
-          # action works.
-          _force-release-for-testing: true
-          action-gh-release-parameters: |
-            {
-                "repository": "houseabsolute/actions-rust-release-testing",
-                "token": "${{ secrets.ACTIONS_RUST_RELEASE_TESTING_TOKEN }}"
-            }
       - name: Install psutils on Windows
         run: choco install --ignore-checksums psutils
         if: runner.os == 'Windows'
@@ -69,12 +61,39 @@ jobs:
               --repo houseabsolute/actions-rust-release \
               --target "${{ matrix.platform.target }}"
 
-  test-validate-inputs:
-    name: Test validate-inputs
+  release:
+    name: Publish the packaged archives as one release
+    needs: test
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Publish release
+        uses: ./publish
+        with:
+          executable-name: test-project
+          # We always do a release during tests, just to make sure that the release part of the
+          # action works.
+          _force-release-for-testing: true
+          action-gh-release-parameters: |
+            {
+                "repository": "houseabsolute/actions-rust-release-testing",
+                "token": "${{ secrets.ACTIONS_RUST_RELEASE_TESTING_TOKEN }}"
+            }
+
+  test-scripts:
+    name: Test the Python scripts
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Run tests
         shell: bash
-        run: ./validate-inputs.py --test
+        run: |
+          set -e
+          ./validate-inputs.py --test
+          ./find-release-artifacts.py --test
+          ./make-archive.py --test

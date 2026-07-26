@@ -23,21 +23,13 @@ jobs:
           args: "--release"
           target: x86_64-unknown-linux-gnu
           GITHUB_TOKEN: ${{ github.token }}
-      - name: Release
+      - name: Package
         id: release
         uses: ./
         with:
           executable-name: test-project
           target: x86_64-unknown-linux-gnu
           changes-file: ""
-          # We always to do a release during tests, just to make sure that the release part of the
-          # action works.
-          _force-release-for-testing: true
-          action-gh-release-parameters: |
-            {
-                "repository": "houseabsolute/actions-rust-release-testing",
-                "token": "${{ secrets.ACTIONS_RUST_RELEASE_TESTING_TOKEN }}"
-            }
       - name: Install psutils on Windows
         run: choco install --ignore-checksums psutils
         if: runner.os == 'Windows'
@@ -51,3 +43,27 @@ jobs:
               --repo houseabsolute/actions-rust-release \
               --target "x86_64-unknown-linux-gnu" \
               --no-changes-file
+
+  release:
+    name: Publish with no changes file
+    needs: test
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Publish release
+        uses: ./publish
+        with:
+          executable-name: test-project
+          changes-file: ""
+          # We always do a release during tests, just to make sure that the release part of the
+          # action works.
+          _force-release-for-testing: true
+          action-gh-release-parameters: |
+            {
+                "repository": "houseabsolute/actions-rust-release-testing",
+                "token": "${{ secrets.ACTIONS_RUST_RELEASE_TESTING_TOKEN }}"
+            }
