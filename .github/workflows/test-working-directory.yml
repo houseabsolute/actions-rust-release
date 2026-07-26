@@ -89,6 +89,7 @@ jobs:
           _force-release-for-testing: true
           action-gh-release-parameters: |
             {
+                "draft": true,
                 "repository": "houseabsolute/actions-rust-release-testing",
                 "token": "${{ secrets.ACTIONS_RUST_RELEASE_TESTING_TOKEN }}"
             }
