@@ -112,7 +112,18 @@ def gather_additional_files(
 ) -> List[str]:
     """Gather additional files to include in the archive."""
     if extra_files:
-        return list(filter(None, map(str.strip, extra_files.splitlines())))
+        files = []
+        for entry in filter(None, map(str.strip, extra_files.splitlines())):
+            # The extra-files input is documented as accepting globs, so expand them here. This
+            # has to stay in sync with validate-inputs.py, which validates the same entries.
+            if "*" not in entry:
+                files.append(entry)
+                continue
+            matches = glob.glob(entry)
+            if not matches:
+                sys.exit(f"The extra file '{entry}' does not match any paths")
+            files.extend(matches)
+        return files
 
     files = []
     if changes_file:
@@ -219,6 +230,39 @@ class TestTargetToArchiveName(unittest.TestCase):
         for target, expected in tests.items():
             with self.subTest(target=target):
                 self.assertEqual(target_to_archive_name(target), expected)
+
+
+class TestGatherAdditionalFiles(unittest.TestCase):
+    """Test cases for gather_additional_files."""
+
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.original_dir = os.getcwd()
+        os.chdir(self.temp_dir)
+        for name in ("Changes.md", "README.md", "README.txt", "extra.txt"):
+            Path(name).write_text(name)
+
+    def tearDown(self):
+        os.chdir(self.original_dir)
+        shutil.rmtree(self.temp_dir)
+
+    def test_extra_files_globs_are_expanded(self):
+        """The extra-files input is documented as accepting globs."""
+        files = gather_additional_files("extra.txt\nREADME*", "Changes.md")
+        self.assertEqual(sorted(files), ["README.md", "README.txt", "extra.txt"])
+
+    def test_extra_files_without_globs(self):
+        files = gather_additional_files("extra.txt\n\nChanges.md", "Changes.md")
+        self.assertEqual(files, ["extra.txt", "Changes.md"])
+
+    def test_extra_files_glob_matching_nothing(self):
+        """A glob that matches nothing is an error, not a silently smaller archive."""
+        with self.assertRaises(SystemExit):
+            gather_additional_files("nosuchthing*", "Changes.md")
+
+    def test_no_extra_files(self):
+        files = gather_additional_files(None, "Changes.md")
+        self.assertEqual(sorted(files), ["Changes.md", "README.md", "README.txt"])
 
 
 if __name__ == "__main__":

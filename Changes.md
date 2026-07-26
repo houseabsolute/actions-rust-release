@@ -7,6 +7,15 @@
 - The validator checked whether inputs were _present_ rather than whether they had a value. Since
   the action always sets every one of these environment variables, even for inputs the caller
   omitted, none of those checks could ever fail. They now check the value.
+- The validation of the `extra-files` input resolved relative paths against the repo root, but the
+  packaging step resolves them against the `working-directory` input. With a `working-directory`
+  other than `.`, this meant validation checked different files than were actually packaged, so it
+  could reject files that exist or accept files that don't. Relative `extra-files` paths are now
+  resolved against the working directory, matching the packaging step.
+- The `extra-files` input is documented as accepting globs, and validation accepted them, but the
+  packaging step passed each line through as a literal path. Passing a glob would pass validation
+  and then fail the release with a `FileNotFoundError`. Globs in `extra-files` are now expanded when
+  packaging.
 
 ## 0.0.8 - 2026-06-21
 
