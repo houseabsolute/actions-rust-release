@@ -91,18 +91,16 @@ class InputValidator:
                         f"'artifact-regex' is not a valid regex: {e}"
                     )
 
-        # Validate release-tag-regex if present
-        if "release_tag_regex" in self.inputs:
-            if not self.inputs["release_tag_regex"]:
-                validation_errors.append(
-                    "'release-tag-regex' cannot be empty if provided"
-                )
+            # The publish action always sets this, and it has a default, so an empty value means
+            # the caller explicitly blanked it out.
+            if not self.inputs.get("release_tag_regex"):
+                validation_errors.append("'release-tag-regex' cannot be empty")
             else:
                 try:
-                    _ = re.compile(self.inputs["release_tag_regex"])
+                    re.compile(self.inputs["release_tag_regex"])
                 except re.error as e:
                     validation_errors.append(
-                        f"Invalid regex pattern for 'release-tag-regex': {e}"
+                        f"'release-tag-regex' is not a valid regex: {e}"
                     )
 
         # Validate working directory if present
@@ -264,17 +262,14 @@ class TestInputValidator(unittest.TestCase):
             self.assertEqual(value, inputs[key.replace("_", "-")])
 
     def test_validate_release_tag_regex(self) -> None:
-        """Test validation with missing executable-name."""
-        inputs = {
-            "executable-name": "my-app",
-            "target": "x86_64-unknown-linux-gnu",
-            "release-tag-regex": "[asd",
-            "working-directory": self.temp_dir,
-        }
-        self.setup_env(inputs)
-        validator = InputValidator(self.temp_dir)
-        errors = validator.validate()
+        """The release tag regex has to compile, and cannot be blanked out."""
+        self.setup_env({**self.publish_inputs(), "release-tag-regex": "[asd"})
+        errors = InputValidator(self.temp_dir, PUBLISH_MODE).validate()
         self.assertTrue(any("release-tag-regex" in error for error in errors))
+
+        self.setup_env({**self.publish_inputs(), "release-tag-regex": ""})
+        errors = InputValidator(self.temp_dir, PUBLISH_MODE).validate()
+        self.assertTrue(any("cannot be empty" in error for error in errors))
 
     def test_validate_missing_executable_name(self) -> None:
         """Test validation with missing executable-name."""
@@ -415,28 +410,33 @@ class TestInputValidator(unittest.TestCase):
         errors = validator.validate()
         self.assertTrue("not found in working directory" in error for error in errors)
 
+    def publish_inputs(self) -> Dict[str, str]:
+        """The inputs the publish action always sets, since they have defaults."""
+        return {
+            "working-directory": self.temp_dir,
+            "release-tag-regex": "^v.*",
+        }
+
     def test_publish_mode_needs_name_or_regex(self) -> None:
         """Publish mode accepts either executable-name or artifact-regex."""
-        self.setup_env({"working-directory": self.temp_dir})
+        self.setup_env(self.publish_inputs())
         errors = InputValidator(self.temp_dir, PUBLISH_MODE).validate()
         self.assertTrue(any("artifact-regex" in error for error in errors))
 
-        self.setup_env(
-            {"working-directory": self.temp_dir, "artifact-regex": r"\Aubi-.+\Z"}
-        )
+        self.setup_env({**self.publish_inputs(), "artifact-regex": r"\Aubi-.+\Z"})
         self.assertFalse(InputValidator(self.temp_dir, PUBLISH_MODE).validate())
 
-        self.setup_env({"working-directory": self.temp_dir, "executable-name": "ubi"})
+        self.setup_env({**self.publish_inputs(), "executable-name": "ubi"})
         self.assertFalse(InputValidator(self.temp_dir, PUBLISH_MODE).validate())
 
     def test_publish_mode_ignores_package_inputs(self) -> None:
         """Publish mode does not require target or archive-name."""
-        self.setup_env({"executable-name": "ubi", "working-directory": self.temp_dir})
+        self.setup_env({**self.publish_inputs(), "executable-name": "ubi"})
         self.assertFalse(InputValidator(self.temp_dir, PUBLISH_MODE).validate())
 
     def test_publish_mode_invalid_regex(self) -> None:
         """Publish mode rejects a regex that does not compile."""
-        self.setup_env({"working-directory": self.temp_dir, "artifact-regex": "a["})
+        self.setup_env({**self.publish_inputs(), "artifact-regex": "a["})
         errors = InputValidator(self.temp_dir, PUBLISH_MODE).validate()
         self.assertTrue(any("not a valid regex" in error for error in errors))
 

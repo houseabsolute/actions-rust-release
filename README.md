@@ -214,9 +214,10 @@ A [Python regex](https://docs.python.org/3/library/re.html#regular-expression-sy
 tags which should produce a release. It is matched against the tag name with `re.match`, so it is
 anchored at the start whether or not you write a `^`.
 
-The default, `^v.*`, means tags like `v1.2.3` produce a release and nothing else does. A regex is
-more flexible than matching a prefix — it lets you do things like release only on tags that look
-like a full version, with something along the lines of `^v\d+\.\d+\.\d+$`.
+The default, `^v.*`, matches every tag starting with `v`, so `v1.2.3` produces a release — but so
+would `vibes`. A regex is more flexible than matching a prefix, so you can be stricter than that if
+you want: `^v\d+\.\d+\.\d+$` releases only on tags that look like a full version. Note the trailing
+`$`; without it, `v1.2.3-rc1` matches too, since only the start of the tag is anchored.
 
 This is only consulted for tags. A push to a branch never produces a release, whatever the regex
 says.

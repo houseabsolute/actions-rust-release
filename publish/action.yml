@@ -36,7 +36,8 @@ inputs:
       A Python regex matching the tags which should produce a release. It is matched against the tag
       name with `re.match`, so it is anchored at the start whether or not you write a `^`.
 
-      The default, `^v.*`, means that tags like "v1.2.3" produce a release and nothing else does.
+      The default, `^v.*`, matches every tag starting with "v", so tags like "v1.2.3" produce a
+      release.
 
       This is only consulted for tags. A push to a branch never produces a release.
     default: "^v.*"
@@ -158,7 +159,7 @@ runs:
         set -o pipefail
 
         FAKE_TAG=""
-        if [ -n "${{ inputs._force-release-for-testing }}" ]; then
+        if [ "${{ steps.determine-if-releasing.outputs.force-release }}" = "true" ]; then
             workflow_ref="${{ github.workflow_ref }}"
             workflow_path="${workflow_ref%%@*}"
             workflow_file=$(basename "$workflow_path")
