@@ -40,6 +40,10 @@
 - The packaging action has a new `archive-file` output containing the name of the archive it
   created.
 
+- The `publish` action must run on a Linux runner, and fails immediately if it does not. The
+  packaging action still runs on every platform you build for, but the publish action only moves
+  artifacts around and talks to the GitHub API, so it has no reason to run anywhere else.
+
 - The `changes-file` used as the release description is now looked for in the `working-directory`.
   Previously it was looked for in the repo root, regardless of the `working-directory` input.
 

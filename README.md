@@ -63,16 +63,13 @@ jobs:
 
 ## Why Two Actions?
 
-Before version 1.0.0, a single action both packaged the archive and created the release. When it was
-called from inside a build matrix, as it almost always was, that had two problems:
+Packaging happens once per platform, so it belongs in your build matrix. Releasing happens once per
+tag, so it does not.
 
-- A matrix leg that finished early would publish its archive while other legs were still building,
-  or failing. A release missing one platform's executable could go public because that platform
-  broke after the others had already uploaded.
-- Every leg of the matrix raced to create the same release.
-
-Splitting the work in two means every archive is built and uploaded before anything is released, and
-the release is created exactly once, by a job you can gate on all of your builds succeeding.
+Keeping them separate means nothing is published until every platform has been built and uploaded.
+You decide when that is, with the `needs:` of the job you call `publish` from, so a target that
+fails cannot leave you with a release that is missing its binary. It also means exactly one job
+creates the release, rather than every leg of the matrix trying to create the same one at once.
 
 ## What They Do
 
@@ -97,6 +94,11 @@ matches the specified prefix (defaults to `v`). When it does, it will:
 
 The job that calls it needs both the `contents: write` and `actions: read` permissions. The latter
 is what allows it to list the run's artifacts.
+
+This action must run on a Linux runner, and fails immediately if it does not. The packaging action
+runs on every platform you build for, because it has to pick up that platform's build output, but
+the publish action only moves artifacts around and talks to the GitHub API, so it has no reason to
+run anywhere else.
 
 ## `actions-rust-release` Input Parameters
 

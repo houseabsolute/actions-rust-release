@@ -13,20 +13,14 @@ def main():
     args = parse_arguments()
     validate_arguments(args)
 
-    # We always want to use forward slashes in these paths, even on Windows, because otherwise the
-    # release action breaks (not sure why).
-    artifact_dir = Path(args.artifact_directory).as_posix()
-
     vars = json.loads(os.environ["ACTION_GH_RELEASE_PARAMETERS"])
     # Every file in this directory came from an artifact we matched, which means it is either an
     # archive or its checksum file.
-    vars["files"] = f"{artifact_dir}/*"
+    vars["files"] = f"{args.artifact_directory}/*"
     vars["fail_on_unmatched_files"] = True
 
     if args.changes_file:
-        vars["body_path"] = (
-            Path(args.working_directory) / args.changes_file
-        ).as_posix()
+        vars["body_path"] = str(Path(args.working_directory) / args.changes_file)
 
     if args.fake_tag:
         vars["tag_name"] = args.fake_tag

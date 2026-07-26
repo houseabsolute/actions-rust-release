@@ -8,6 +8,9 @@ description: |
   and publishes them as a single GitHub release. Run it once, from a job that runs after all of
   your build jobs have succeeded.
 
+  This action must run on a Linux runner, and fails immediately if it does not. Unlike the packaging
+  action, it does not touch your build output, so there is no reason to run it anywhere else.
+
   The job running this action needs both the `contents: write` and `actions: read` permissions.
 inputs:
   executable-name:
@@ -66,6 +69,15 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Check that this is a Linux runner
+      shell: bash
+      run: |
+        echo "The publish action must run on a Linux runner, but this job is running on" \
+             "${{ runner.os }}. Move this step to a job with 'runs-on: ubuntu-latest' or" \
+             "similar. Only the packaging action needs to run on the platform you built for." >&2
+        exit 1
+      if: runner.os != 'Linux'
+
     - name: Show inputs
       shell: bash
       run: |
