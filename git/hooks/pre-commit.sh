@@ -1,14 +1,5 @@
 #!/bin/bash
 
-status=0
+set -e
 
-PRECIOUS=$(which precious)
-if [[ -z $PRECIOUS ]]; then
-    PRECIOUS=./bin/precious
-fi
-
-if ! "$PRECIOUS" lint -s; then
-    status=$((status + 1))
-fi
-
-exit $status
+mise exec -- precious lint -s
