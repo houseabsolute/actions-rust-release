@@ -224,7 +224,10 @@ runs:
             workflow_path="${WORKFLOW_REF%%@*}"
             workflow_file=$(basename "$workflow_path")
             timestamp=$( TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H-%M-%S )
-            TAG="v-$timestamp-$REF_NAME-$SHA-$RUN_NUMBER-$workflow_file"
+            # The run attempt is in here because the run number does not change when a workflow
+            # is re-run, and neither does anything else in this tag. Without it a re-run builds
+            # the same tag as the original, and the action refuses to touch an existing release.
+            TAG="v-$timestamp-$REF_NAME-$SHA-$RUN_NUMBER-$RUN_ATTEMPT-$workflow_file"
         fi
 
         # Everything comes from env vars rather than being interpolated into this script, and the
@@ -262,6 +265,7 @@ runs:
         INPUTS_target: ${{ inputs.target }}
         INPUTS_working_directory: ${{ inputs.working-directory }}
         REF_NAME: ${{ github.ref_name }}
+        RUN_ATTEMPT: ${{ github.run_attempt }}
         RUN_NUMBER: ${{ github.run_number }}
         SHA: ${{ github.sha }}
         WORKFLOW_REF: ${{ github.workflow_ref }}
