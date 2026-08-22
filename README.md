@@ -9,6 +9,9 @@ for Rust projects that produce an executable:
 - `houseabsolute/actions-rust-release/publish` collects those archives and turns them into a single
   GitHub Release. You call this once, from a job that runs after all of your build jobs.
 
+If you are coming from v0, where this was a single action, see
+[the v0 to v1 migration guide](MIGRATING.md).
+
 Here's an example from the release workflow for
 [my tool `precious`](https://github.com/houseabsolute/precious):
 
@@ -45,8 +48,8 @@ jobs:
           executable-name: precious
           target: ${{ matrix.platform.target }}
 
-  release:
-    name: Create GitHub release
+  publish:
+    name: Publish GitHub release
     needs: package
     runs-on: ubuntu-24.04
     permissions:

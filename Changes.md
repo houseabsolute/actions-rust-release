@@ -13,8 +13,8 @@
   runs after all of your build jobs:
 
   ```yaml
-  release:
-    name: Create GitHub release
+  publish:
+    name: Publish GitHub release
     needs: package
     runs-on: ubuntu-24.04
     permissions:
@@ -28,7 +28,8 @@
   ```
 
   The tag-matching and release inputs now belong to the `publish` action. The packaging action no
-  longer accepts them.
+  longer accepts them. See [the migration guide](MIGRATING.md) for the details, including what
+  happened to every v0 input.
 
 - The `publish` action takes a new `artifact-regex` input. It asks the GitHub API which artifacts
   belong to the current workflow run, and only downloads and releases the ones whose names match.
