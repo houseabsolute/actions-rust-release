@@ -111,7 +111,8 @@ inputs:
 outputs:
   artifact-ids:
     description: |
-      A comma-separated list of the IDs of the artifacts that were attached to the release.
+      A comma-separated list of the IDs of the workflow artifacts that were downloaded and
+      attached to the release.
     value: ${{ steps.find-artifacts.outputs.artifact-ids }}
 
   release-tag:

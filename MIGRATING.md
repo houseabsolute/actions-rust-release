@@ -116,10 +116,10 @@ These moved to the `publish` action, and the packaging action no longer accepts 
 | `release-tag-prefix`           | `release-tag-regex`, see below       |
 | `action-gh-release-parameters` | named inputs on `publish`, see below |
 
-The `publish` action also takes `executable-name`, `changes-file`, and `working-directory`.
-`changes-file` and `working-directory` mean the same thing there as they do when packaging.
-`executable-name` does not: when packaging it is required and locates the build output, while on
-`publish` it is optional and only used to build the default `artifact-regex`, described below.
+The `publish` action also takes `executable-name`, `changes-file`, and `working-directory`. They
+take the same values as the packaging versions, but none of the three does the same job on both
+actions, and setting one does not set the other. The README has
+[a table of what each one means where](README.md#inputs-both-actions-take).
 
 ## Replacing `action-gh-release-parameters`
 
@@ -234,6 +234,6 @@ directly.
 The packaging action keeps `artifact-id` and `artifact-url`, and gains `archive-file`, the name of
 the archive it created.
 
-The `publish` action has its own outputs: `artifact-ids`, a comma-separated list of the artifacts it
-attached, and `release-tag`, the tag of the release it created. `release-tag` is empty when no
+The `publish` action has its own outputs: `artifact-ids`, the workflow artifacts it downloaded to
+build the release from, and `release-tag`, the tag of the release it created. Both are empty when no
 release was created.

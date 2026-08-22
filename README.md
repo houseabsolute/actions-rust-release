@@ -99,10 +99,10 @@ will:
 The job that calls it needs both the `contents: write` and `actions: read` permissions. The latter
 is what allows it to list the run's artifacts.
 
-This action must run on a Linux runner, and fails immediately if it does not. The packaging action
-runs on every platform you build for, because it has to pick up that platform's build output, but
-the publish action only moves artifacts around and talks to the GitHub API, so it has no reason to
-run anywhere else.
+The publish action must run on a Linux runner, and fails immediately if it does not. The packaging
+action runs on every platform you build for, because it has to pick up that platform's build output,
+but the publish action only moves artifacts around and talks to the GitHub API, so it has no reason
+to run anywhere else.
 
 ## `actions-rust-release` Input Parameters
 
@@ -129,8 +129,8 @@ Either this input or the `archive-name` input must be provided.
 - **Required**: no, if `target` is provided
 
 The name of the archive file to produce. This will contain the executable and any additional files
-specified in the `files-to-package` input, if any. If this isn't given, then one will be created
-based, starting with the `executable-name` and followed by elements from the `target` input.
+specified in the `extra-files` input, if any. If this isn't given, then one will be created based,
+starting with the `executable-name` and followed by elements from the `target` input.
 
 Either this input or the `target` input must be provided.
 
@@ -142,11 +142,12 @@ This is a list of additional files or globs to include in the archive files for 
 should be provided as a newline-separate list.
 
 Defaults to the file specified by the `changes-file` input and any file matching `README*` in the
-project root.
+`working-directory`.
 
-If you _do_ specify any files, then you will need to also list the changes file and README
-explicitly if you want them to be included. The value passed in `changes-files` will be ignored in
-this case.
+Setting this replaces the default rather than adding to it, so if you want the changes file or the
+README in the archive as well, list them here yourself. The `changes-file` input no longer decides
+what goes into the archive in that case, but it is still validated, so it has to name a file that
+exists, or be set to an empty string.
 
 ### `changes-file`
 
@@ -155,7 +156,9 @@ this case.
 
 The name of the file that contains the changelog for this project. This is included in the archive.
 
-If you set this to an empty string, then no changelog file will be included.
+The action fails if this names a file that does not exist. Since it defaults to `Changes.md`, a
+project with no changelog has to set this to an empty string, which also leaves the file out of the
+archive.
 
 ### `working-directory`
 
@@ -181,7 +184,8 @@ The URL of the workflow artifact that was created.
 
 ## `actions-rust-release/publish` Input Parameters
 
-The publishing action takes the following parameters:
+The publishing action takes the following parameters. Note that some of these parameters have the
+same name as for the `actions-rust-release` action, but they have different purposes.
 
 ### `executable-name`
 
@@ -335,6 +339,35 @@ own token has no access to another repository.
 The token used to create the release. The default is the workflow's own token, which needs the
 `contents: write` permission.
 
+## `actions-rust-release/publish` Outputs
+
+### `artifact-ids`
+
+A comma-separated list of the IDs of the workflow artifacts that matched the `artifact-regex` and
+were downloaded. These are the same IDs the packaging action reports as `artifact-id`. The release
+assets made from them do not have IDs of their own here.
+
+This is empty when no release was created, for the same reason `release-tag` is.
+
+### `release-tag`
+
+The tag of the release that was created. This is empty when the action ran but did not create a
+release, because the tag did not match the `release-tag-regex`.
+
+## Inputs Both Actions Take
+
+Three input names appear on both actions. They take the same value, but they are not doing the same
+job, and setting one does not set the other.
+
+| Input               | On the packaging action                 | On the publish action                                                                          |
+| ------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `executable-name`   | required; finds the compiled executable | optional if `artifact-regex` is set; its only use is to construct the default `artifact-regex` |
+| `changes-file`      | a file to put inside the archive        | the body of the release as seen on the repo's release page                                     |
+| `working-directory` | where all of the packaging happens      | only looks for the `changes-file` here                                                         |
+
+So a workflow that packages a changelog into its archives and wants the same file as the release
+description has to pass `changes-file` to both.
+
 ## Immutable Releases
 
 This action works with
@@ -349,17 +382,6 @@ turn it on for you. You enable it under **Settings > General** for the repositor
 Note that once a release is published in a repository with immutability enabled, it cannot be
 changed. This action never updates an existing release. If a release already exists for the tag it
 is about to use, it fails rather than trying to add to it.
-
-## `actions-rust-release/publish` Outputs
-
-### `artifact-ids`
-
-A comma-separated list of the IDs of the artifacts that were attached to the release.
-
-### `release-tag`
-
-The tag of the release that was created. This is empty when the action ran but did not create a
-release, because the tag did not match the `release-tag-regex`.
 
 ## Linting and Tidying this Code
 

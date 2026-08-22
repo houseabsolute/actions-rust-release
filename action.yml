@@ -25,7 +25,7 @@ inputs:
   archive-name:
     description: |
       The name of the archive file to produce. This will contain the executable and any additional
-      files specified in the `files-to-package` input, if any. If this isn't given, then one will be
+      files specified in the `extra-files` input, if any. If this isn't given, then one will be
       created based, starting with the `executable-name` and followed by elements from the `target`
       input.
 
