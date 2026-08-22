@@ -3,4 +3,5 @@
 /package.json
 .\#*
 \#*\#
+__pycache__
 test-project/**/target/**
