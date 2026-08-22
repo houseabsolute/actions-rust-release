@@ -2,9 +2,12 @@
 
 import argparse
 from pathlib import Path
+import re
 import subprocess
 import sys
+import tempfile
 import unittest
+from unittest import mock
 from typing import List, Optional
 
 
@@ -270,6 +273,159 @@ class TestBuildCommand(unittest.TestCase):
         """Anything after the positional files would be read as another file."""
         command = build_command(self.args(draft=True), ["/artifacts/a.tar.gz"])
         self.assertEqual(command[-1], "/artifacts/a.tar.gz")
+
+
+class TestReleaseFiles(unittest.TestCase):
+    """Unit tests for collecting the files to attach."""
+
+    def test_missing_directory(self) -> None:
+        """Nothing was downloaded, which means the find step matched no artifacts."""
+        with tempfile.TemporaryDirectory() as td:
+            with self.assertRaises(SystemExit) as cm:
+                release_files(str(Path(td) / "nope"))
+            self.assertIn("does not exist", str(cm.exception))
+
+    def test_empty_directory(self) -> None:
+        """This is where the old `fail_on_unmatched_files` behavior lives now."""
+        with tempfile.TemporaryDirectory() as td:
+            with self.assertRaises(SystemExit) as cm:
+                release_files(td)
+            self.assertIn("does not contain any files", str(cm.exception))
+
+    def test_sorted_and_files_only(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            for name in ("b.tar.gz", "a.tar.gz", "a.tar.gz.sha256"):
+                (Path(td) / name).write_text("x")
+            (Path(td) / "a-directory").mkdir()
+            self.assertEqual(
+                [Path(f).name for f in release_files(td)],
+                ["a.tar.gz", "a.tar.gz.sha256", "b.tar.gz"],
+            )
+
+
+class TestReleaseExists(unittest.TestCase):
+    """Unit tests for the check that keeps us from touching an existing release."""
+
+    def test_exists(self) -> None:
+        with mock.patch("subprocess.run") as run:
+            run.return_value = subprocess.CompletedProcess([], 0, "", "")
+            self.assertTrue(release_exists("v1.2.3", "me/repo"))
+        self.assertEqual(
+            run.call_args[0][0],
+            ["gh", "release", "view", "v1.2.3", "--repo", "me/repo"],
+        )
+
+    def test_does_not_exist(self) -> None:
+        with mock.patch("subprocess.run") as run:
+            run.return_value = subprocess.CompletedProcess([], 1, "", "not found")
+            self.assertFalse(release_exists("v1.2.3", None))
+        self.assertNotIn("--repo", run.call_args[0][0])
+
+
+class TestMain(unittest.TestCase):
+    """
+    Unit tests for the wiring, which is where the check and the create call meet.
+
+    These stub `subprocess.run`, so `gh` is never actually invoked.
+    """
+
+    def run_main(self, returncode: int, *extra_args: str) -> mock.Mock:
+        """Run main() against a directory with one archive in it, with `gh` stubbed out."""
+        with tempfile.TemporaryDirectory() as td:
+            (Path(td) / "test-project.tar.gz").write_text("x")
+            argv = [
+                "create-release.py",
+                "--tag=v1.2.3",
+                f"--artifact-directory={td}",
+                *extra_args,
+            ]
+            with mock.patch.object(sys, "argv", argv):
+                with mock.patch("subprocess.run") as run:
+                    run.return_value = subprocess.CompletedProcess(
+                        [], returncode, "", ""
+                    )
+                    main()
+                    return run
+
+    def test_creates_the_release(self) -> None:
+        run = self.run_main(1)
+        # The first call is the existence check, the second creates the release.
+        self.assertEqual(run.call_count, 2)
+        command = run.call_args[0][0]
+        self.assertEqual(command[:4], ["gh", "release", "create", "v1.2.3"])
+        self.assertTrue(command[-1].endswith("test-project.tar.gz"))
+
+    def test_refuses_to_touch_an_existing_release(self) -> None:
+        """An immutable release cannot be updated, so re-running has to fail loudly."""
+        with self.assertRaises(SystemExit) as cm:
+            self.run_main(0, "--repository=me/repo")
+        self.assertIn("already exists", str(cm.exception))
+        self.assertIn("me/repo", str(cm.exception))
+
+    def test_does_not_create_after_finding_a_release(self) -> None:
+        """The existence check has to be the only thing that ran before we give up."""
+        with tempfile.TemporaryDirectory() as td:
+            (Path(td) / "a.tar.gz").write_text("x")
+            argv = ["create-release.py", "--tag=v1", f"--artifact-directory={td}"]
+            with mock.patch.object(sys, "argv", argv):
+                with mock.patch("subprocess.run") as run:
+                    run.return_value = subprocess.CompletedProcess([], 0, "", "")
+                    with self.assertRaises(SystemExit):
+                        main()
+                    self.assertEqual(run.call_count, 1)
+
+
+class TestParseArguments(unittest.TestCase):
+    """Unit tests for turning the action's string inputs into arguments."""
+
+    def parse(self, *args: str) -> argparse.Namespace:
+        argv = ["create-release.py", "--tag=v1", "--artifact-directory=/a", *args]
+        with mock.patch.object(sys, "argv", argv):
+            return parse_arguments()
+
+    def test_booleans_come_in_as_strings(self) -> None:
+        args = self.parse("--draft=false", "--prerelease=true")
+        self.assertFalse(args.draft)
+        self.assertTrue(args.prerelease)
+
+    def test_latest_is_normalized(self) -> None:
+        self.assertEqual(self.parse("--latest=  TRUE ").latest, "true")
+        self.assertEqual(self.parse().latest, "")
+
+    def test_latest_rejects_anything_else(self) -> None:
+        with self.assertRaises(SystemExit) as cm:
+            self.parse("--latest=maybe")
+        self.assertIn("must be 'true' or 'false'", str(cm.exception))
+
+
+class TestActionInvocation(unittest.TestCase):
+    """
+    Check how publish/action.yml calls this script.
+
+    A value starting with a "-" is read as another option when it follows a space, so every
+    argument has to use the `--opt=value` form. Nothing about running the script catches a
+    reformat back to the spaced form, so this reads the action itself.
+    """
+
+    def test_every_argument_uses_the_equals_form(self) -> None:
+        action = Path(__file__).parent / "publish" / "action.yml"
+        text = action.read_text()
+        invocation = re.search(
+            r"create-release\.py \\\n(.*?)\n      env:", text, re.DOTALL
+        )
+        self.assertIsNotNone(
+            invocation, f"could not find the create-release.py invocation in {action}"
+        )
+
+        # Only lines that are an argument, so that a "--word " inside a comment in the same
+        # block is not scanned as if it were one.
+        flags = re.findall(r"^ +(--[a-z-]+)([= ])", invocation.group(1), re.MULTILINE)
+        self.assertTrue(flags, "found the invocation but no arguments in it")
+        for flag, separator in flags:
+            with self.subTest(flag=flag):
+                self.assertEqual(
+                    separator, "=", f"{flag} must use the --opt=value form"
+                )
 
 
 if __name__ == "__main__":
