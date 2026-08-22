@@ -6,7 +6,7 @@
 
   This exists because almost everyone calls this action from inside a build matrix. When the same
   action both packaged and released, a matrix leg that finished early would publish its archive
-  while other legs were still building — or failing — so a release missing one platform's executable
+  while other legs were still building - or failing - so a release missing one platform's executable
   could go public. Every leg of the matrix also raced to create the same release.
 
   To upgrade, drop the release-specific inputs from your existing invocation and add a job which
@@ -36,35 +36,27 @@
   packaging action. This keeps unrelated artifacts, like coverage reports or logs, out of your
   releases. Note that the job calling `publish` needs the `actions: read` permission in order to
   list the run's artifacts.
-
 - The `release-tag-prefix` input is replaced by `release-tag-regex`, which is a lot more flexible -
   it allows things like releasing on every tag, or only on tags without a pre-release suffix.
-  Implemented by @s3rius (Pavel Kirilin). GH #16.
-
-  The default is `^v?\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$`, which matches a semantic
-  version with an optional leading `v`. This is narrower than the old default, which released on any
-  tag starting with `v`. If you tag releases as something other than a version - `nightly`, or a
-  date - you will need to set this input to keep releasing on those tags.
-
+  Implemented by @s3rius (Pavel Kirilin). GH #16. The default is
+  `^v?\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$`, which matches a semantic version with an
+  optional leading `v`. This is narrower than the old default, which released on any tag starting
+  with `v`. If you tag releases as something other than a version - `nightly`, or a date - you will
+  need to set this input to keep releasing on those tags.
 - The packaging action has a new `archive-file` output containing the name of the archive it
   created.
-
 - The `publish` action must run on a Linux runner, and fails immediately if it does not. The
   packaging action still runs on every platform you build for, but the publish action only moves
   artifacts around and talks to the GitHub API, so it has no reason to run anywhere else.
-
 - The `changes-file` used as the release description is now looked for in the `working-directory`.
   Previously it was looked for in the repo root, regardless of the `working-directory` input.
-
 - Fixed a bug where boolean parameters passed to `softprops/action-gh-release` were written as
   Python's `True` rather than `true`. That action compares its inputs against the string `"true"`,
-  so every boolean this action set was silently ignored, including `fail_on_unmatched_files`.
-
-  This action used to force `draft` on, but because of the bug above it never actually took effect,
-  and releases have always been published directly. Rather than change that behavior now, this
-  action no longer sets `draft` at all. If you want draft releases, pass `"draft": true` in
-  `action-gh-release-parameters` — which now works.
-
+  so every boolean this action set was silently ignored, including `fail_on_unmatched_files`. This
+  action used to force `draft` on, but because of the bug above it never actually took effect, and
+  releases have always been published directly. Rather than change that behavior now, this action no
+  longer sets `draft` at all. If you want draft releases, pass `"draft": true` in
+  `action-gh-release-parameters` - which now works.
 - Multi-line values in `action-gh-release-parameters`, such as `body`, no longer corrupt the
   parameters passed to `softprops/action-gh-release`.
 
