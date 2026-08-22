@@ -62,6 +62,8 @@ jobs:
   release:
     name: Publish with no changes file
     needs: test
+    # See the matching comment in test.yml for why this only runs on a push.
+    if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     permissions:
       actions: read # The publish action lists this run's artifacts to pick the ones to release.
@@ -74,6 +76,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Publish release
+        id: publish
         uses: ./publish
         with:
           executable-name: test-project
@@ -81,6 +84,22 @@ jobs:
           # We always do a release during tests, just to make sure that the release part of the
           # action works.
           _force-release-for-testing: true
+          # test.yml publishes for real so that immutability gets exercised. This is where the
+          # draft and prerelease inputs are checked instead, since a draft is never immutable.
           draft: true
+          prerelease: true
           repository: houseabsolute/actions-rust-release-testing
           token: ${{ secrets.ACTIONS_RUST_RELEASE_TESTING_TOKEN }}
+      - name: Check the release
+        shell: bash
+        run: |
+          ./tests/verify-release.py \
+              --tag "$TAG" \
+              --repository houseabsolute/actions-rust-release-testing \
+              --executable-name test-project \
+              --expect-draft \
+              --expect-prerelease \
+              --expect-asset-count 2
+        env:
+          GH_TOKEN: ${{ secrets.ACTIONS_RUST_RELEASE_TESTING_TOKEN }}
+          TAG: ${{ steps.publish.outputs.release-tag }}

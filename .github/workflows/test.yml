@@ -117,6 +117,10 @@ jobs:
   release:
     name: Publish the packaged archives as one release
     needs: [platforms, test]
+    # Only on a push. This job publishes a real release into the testing repository, and a branch
+    # with an open PR fires both events, which would make two releases for one commit. The token
+    # is also not available to a run from a fork, so this could not work there anyway.
+    if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     permissions:
       actions: read # The publish action lists this run's artifacts to pick the ones to release.
@@ -144,12 +148,18 @@ jobs:
           # here, because the other workflows already cover those.
           release-name: Test release for ${{ github.sha }}
           generate-release-notes: true
-          draft: true
-          prerelease: true
+          # This one publishes for real rather than creating a draft. The testing repository has
+          # immutable releases turned on, and a release only becomes immutable when it is
+          # published, so this is the only way to find out whether the create-as-draft, upload,
+          # then publish sequence really works. test-no-changes-file.yml covers the draft case.
+          draft: false
+          prerelease: false
           # `latest` has to become a single `--latest=false` argument. Split into two, `gh` would
-          # read the "false" as another file to upload, where the asset check below catches it.
-          # GitHub will not mark a draft or a prerelease as latest either way, so the release's
-          # own `isLatest` cannot tell us anything here.
+          # read the "false" as another file to upload, which the asset check below catches.
+          #
+          # Whether the flag was honoured cannot be checked. There is no `isLatest` field in
+          # `gh release view`, and the `releases/latest` API endpoint returns the newest published
+          # release whether or not `make_latest` was set to false, so it says nothing here.
           latest: false
       - name: Check the release
         shell: bash
@@ -159,8 +169,7 @@ jobs:
               --repository houseabsolute/actions-rust-release-testing \
               --executable-name test-project \
               --expect-title "Test release for $SHA" \
-              --expect-draft \
-              --expect-prerelease \
+              --expect-immutable \
               --expect-notes-from Changes.md \
               --expect-generated-notes \
               --expect-asset-count "$ASSET_COUNT"

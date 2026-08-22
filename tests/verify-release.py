@@ -47,6 +47,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--executable-name", required=True)
     parser.add_argument("--expect-title")
     parser.add_argument("--expect-draft", action="store_true")
+    parser.add_argument("--expect-immutable", action="store_true")
     parser.add_argument("--expect-prerelease", action="store_true")
     # The file whose contents should be the start of the release body.
     parser.add_argument("--expect-notes-from")
@@ -60,6 +61,11 @@ def parse_args() -> argparse.Namespace:
         sys.exit(
             "The tag is empty, which means the publish action did not create a release. "
             "Guard this step with an `if:` if that is expected."
+        )
+    if args.expect_immutable and args.expect_draft:
+        sys.exit(
+            "A draft release is never immutable, so --expect-immutable and --expect-draft "
+            "cannot both be used."
         )
     # Without a notes file there is nothing to compare the generated notes against, so the check
     # would quietly pass without looking at anything.
@@ -82,12 +88,19 @@ def fetch_release(tag: str, repository: str) -> Dict:
             "--repo",
             repository,
             "--json",
-            "name,body,isDraft,isPrerelease,assets",
+            "name,body,isDraft,isPrerelease,isImmutable,assets",
         ],
         capture_output=True,
         text=True,
     )
     if result.returncode != 0:
+        # An older `gh` does not know every field asked for above, and saying the release could
+        # not be read would point at the publish action rather than at the CLI.
+        if "Unknown JSON field" in result.stderr:
+            sys.exit(
+                f"This `gh` is too old for one of the fields this check needs: "
+                f"{result.stderr.strip()}"
+            )
         sys.exit(
             f"Could not read the release for '{tag}' in {repository}: {result.stderr.strip()}"
         )
@@ -112,6 +125,14 @@ def check_flags(release: Dict, args: argparse.Namespace) -> List[str]:
         errors.append(
             f"isPrerelease is {release['isPrerelease']}, but 'prerelease' asked for "
             f"{args.expect_prerelease}"
+        )
+    # A release only becomes immutable when it is published, so a draft is never immutable no
+    # matter what the repository setting says. Checking this is the only way to know the
+    # create-as-draft, upload, then publish sequence really happened.
+    if args.expect_immutable and not release["isImmutable"]:
+        errors.append(
+            "isImmutable is false, so this release was not published into an immutable "
+            "release repository the way it should have been"
         )
 
     return errors
@@ -268,6 +289,41 @@ class TestVerifyRelease(unittest.TestCase):
             )
             self.assertEqual(len(errors), 1)
             self.assertIn("## 1.0.0", errors[0])
+
+    def flag_args(self, **overrides) -> argparse.Namespace:
+        defaults = {
+            "expect_title": None,
+            "expect_draft": False,
+            "expect_prerelease": False,
+            "expect_immutable": False,
+        }
+        return argparse.Namespace(**{**defaults, **overrides})
+
+    def test_immutable_is_only_checked_when_asked_for(self) -> None:
+        """A workflow that publishes a draft has nothing to say about immutability."""
+        # No isImmutable key at all, so reading it without being asked to is a KeyError rather
+        # than a silent pass.
+        release = {"name": "x", "isDraft": True, "isPrerelease": False}
+        self.assertEqual(
+            check_flags(release, self.flag_args(expect_draft=True)),
+            [],
+        )
+
+    def test_a_published_release_has_to_be_immutable(self) -> None:
+        release = {
+            "name": "x",
+            "isDraft": False,
+            "isPrerelease": False,
+            "isImmutable": False,
+        }
+        errors = check_flags(release, self.flag_args(expect_immutable=True))
+        self.assertEqual(len(errors), 1)
+        self.assertIn("isImmutable is false", errors[0])
+
+        release["isImmutable"] = True
+        self.assertEqual(
+            check_flags(release, self.flag_args(expect_immutable=True)), []
+        )
 
     def test_notes_ignore_line_endings(self) -> None:
         self.assertEqual(normalize("a \r\nb\r\n"), "a\nb")
