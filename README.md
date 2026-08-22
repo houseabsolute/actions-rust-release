@@ -256,16 +256,89 @@ If you set this to an empty string, then the release will have no description.
 
 The directory which contains the `changes-file`. This defaults to the checked out repo's root.
 
-### `action-gh-release-parameters`
+### `release-name`
 
 - **Required**: no
 
-This must be a string containing valid JSON. The JSON should be an object where the keys are the
-parameters for
-[the `softprops/action-gh-release@v3` action](https://github.com/softprops/action-gh-release).
+The title of the release. If this is not set, GitHub uses the tag name as the title.
 
-Note that the publish action will always set the `files` and `fail_on_unmatched_files` parameters,
-so any values you set for these parameters in the JSON string will be ignored.
+### `generate-release-notes`
+
+- **Required**: no
+- **Default**: `"false"`
+
+Set this to `"true"` to have GitHub generate release notes from the commits and pull requests since
+the last release. If you set both this and `changes-file`, the generated notes are appended to the
+contents of the changes file.
+
+### `draft`
+
+- **Required**: no
+- **Default**: `"false"`
+
+Set this to `"true"` to create the release as a draft, so that you can review it before publishing
+it yourself.
+
+### `prerelease`
+
+- **Required**: no
+- **Default**: `"false"`
+
+Set this to `"true"` to mark the release as a prerelease.
+
+### `latest`
+
+- **Required**: no
+
+Set this to `"true"` or `"false"` to control whether the release is marked as the latest release. If
+you leave this unset, GitHub decides based on the release date, which is usually what you want.
+
+### `target`
+
+- **Required**: no
+
+The branch name or commit SHA that the tag is created from, if the tag does not already exist. This
+defaults to the repository's default branch.
+
+### `discussion-category`
+
+- **Required**: no
+
+The name of a discussion category. If this is set, then publishing the release also creates a
+discussion in that category.
+
+### `repository`
+
+- **Required**: no
+- **Default**: `${{ github.repository }}`
+
+The `owner/repo` to create the release in. This defaults to the repository running the workflow.
+
+If you set this, you almost certainly need to set the `token` input as well, since the workflow's
+own token has no access to another repository.
+
+### `token`
+
+- **Required**: no
+- **Default**: `${{ github.token }}`
+
+The token used to create the release. The default is the workflow's own token, which needs the
+`contents: write` permission.
+
+## Immutable Releases
+
+This action works with
+[immutable releases](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases).
+It creates the release as a draft, uploads the archives to it, and only then publishes it, which is
+the order GitHub requires when a repository has immutability turned on.
+
+Immutability is a repository setting rather than something a release asks for, so this action cannot
+turn it on for you. You enable it under **Settings > General** for the repository, or with the
+[REST API](https://docs.github.com/en/rest/repos/repos).
+
+Note that once a release is published in a repository with immutability enabled, it cannot be
+changed. This action never updates an existing release. If a release already exists for the tag it
+is about to use, it fails rather than trying to add to it.
 
 ## `actions-rust-release/publish` Outputs
 

@@ -27,8 +27,8 @@
           executable-name: my-project
   ```
 
-  The tag-matching and `action-gh-release-parameters` inputs now belong to the `publish` action. The
-  packaging action no longer accepts them.
+  The tag-matching and release inputs now belong to the `publish` action. The packaging action no
+  longer accepts them.
 
 - The `publish` action takes a new `artifact-regex` input. It asks the GitHub API which artifacts
   belong to the current workflow run, and only downloads and releases the ones whose names match.
@@ -50,17 +50,37 @@
   artifacts around and talks to the GitHub API, so it has no reason to run anywhere else.
 - The `changes-file` used as the release description is now looked for in the `working-directory`.
   Previously it was looked for in the repo root, regardless of the `working-directory` input.
+- **Breaking change**: The release is now created by the `gh` CLI, which is preinstalled on GitHub
+  runners, instead of by `softprops/action-gh-release`. That removes a third-party action from the
+  path your release token travels through.
+
+  This replaces the `action-gh-release-parameters` input, which took a JSON blob of parameters for
+  that action. Tying this action's interface to another project's input names was a mistake, so the
+  parameters people actually use are now named inputs: `release-name`, `draft`, `prerelease`,
+  `latest`, `target`, `repository`, `token`, `discussion-category`, and `generate-release-notes`.
+
+  The `body` and `body_path` parameters have no replacement, because `changes-file` already covers
+  that. There is no replacement for `append_body` or `preserve_order`, which `gh` cannot do.
+
+- **Breaking change**: The `publish` action no longer updates an existing release. If a release
+  already exists for the tag it is about to use, it fails. Previously it would add to the existing
+  release, which cannot work at all in a repository with immutable releases enabled.
+
+- The `publish` action works with
+  [immutable releases](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases).
+  It creates the release as a draft, uploads the archives, and only then publishes it, which is the
+  order GitHub requires when a repository has immutability turned on. Immutability itself is a
+  repository setting, so you still turn it on yourself under **Settings > General**.
+
 - Fixed a bug where boolean parameters passed to `softprops/action-gh-release` were written as
   Python's `True` rather than `true`. That action compares its inputs against the string `"true"`,
   so every boolean this action set was silently ignored, including `fail_on_unmatched_files`. This
   action used to force `draft` on, but because of the bug above it never actually took effect, and
-  releases have always been published directly. Rather than change that behavior now, this action no
-  longer sets `draft` at all. If you want draft releases, pass `"draft": true` in
-  `action-gh-release-parameters` - which now works.
+  releases have always been published directly. The new `draft` input defaults to off, so that
+  behavior is unchanged, and setting it now actually works.
+
 - Every action this action uses is now pinned to a commit hash rather than a tag, so a compromised
   or moved tag upstream cannot change what runs in your workflow.
-- Multi-line values in `action-gh-release-parameters`, such as `body`, no longer corrupt the
-  parameters passed to `softprops/action-gh-release`.
 
 ## 0.0.9 - 2026-07-26
 

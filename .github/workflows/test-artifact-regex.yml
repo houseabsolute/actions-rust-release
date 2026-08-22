@@ -54,8 +54,8 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       actions: read # The publish action lists this run's artifacts to pick the ones to release.
-      # These tests release to a separate repo with a token passed in via
-      # `action-gh-release-parameters`, so no write access to this repo is needed.
+      # These tests release to a separate repo using the token passed in via the
+      # `token` input, so no write access to this repo is needed.
       contents: read
     steps:
       - name: Checkout
@@ -70,12 +70,9 @@ jobs:
           # We always do a release during tests, just to make sure that the release part of the
           # action works.
           _force-release-for-testing: true
-          action-gh-release-parameters: |
-            {
-                "draft": true,
-                "repository": "houseabsolute/actions-rust-release-testing",
-                "token": "${{ secrets.ACTIONS_RUST_RELEASE_TESTING_TOKEN }}"
-            }
+          draft: true
+          repository: houseabsolute/actions-rust-release-testing
+          token: ${{ secrets.ACTIONS_RUST_RELEASE_TESTING_TOKEN }}
       # The publish action tells us which artifacts it picked, so we can check that the decoy was
       # left behind without having to inspect the release itself.
       - name: Check that only the archive was released

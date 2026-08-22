@@ -56,11 +56,53 @@ inputs:
       current working directory.
     default: "."
 
-  action-gh-release-parameters:
+  release-name:
     description: |
-      A JSON string containing parameters to pass to `softprops/action-gh-release@v3`. You can use
-      the `toJSON()` function in your action to make passing this easier.
-    default: "{}"
+      The title of the release. If this is not set, GitHub uses the tag name.
+
+  generate-release-notes:
+    description: |
+      Set this to "true" to have GitHub generate the release notes from the commits and pull
+      requests since the last release. This is combined with the `changes-file` if you set both.
+    default: "false"
+
+  draft:
+    description: |
+      Set this to "true" to create the release as a draft, so you can review it before publishing.
+    default: "false"
+
+  prerelease:
+    description: |
+      Set this to "true" to mark the release as a prerelease.
+    default: "false"
+
+  latest:
+    description: |
+      Set this to "true" or "false" to control whether the release is marked as the latest one. If
+      this is left unset, GitHub decides based on the release date, which is what you usually want.
+
+  target:
+    description: |
+      The branch name or commit SHA that the tag is created from, if the tag does not already
+      exist. This defaults to the repository's default branch.
+
+  discussion-category:
+    description: |
+      The name of a discussion category. If this is set, the release creates a discussion in that
+      category.
+
+  repository:
+    description: |
+      The `owner/repo` to create the release in. This defaults to the repository running the
+      workflow. If you set this, you almost certainly need to set the `token` input too, since the
+      default token has no access to another repository.
+    default: ${{ github.repository }}
+
+  token:
+    description: |
+      The token used to create the release. This defaults to the workflow's own token, which needs
+      the `contents: write` permission.
+    default: ${{ github.token }}
 
   _force-release-for-testing:
     description: |
@@ -110,7 +152,7 @@ runs:
         INPUTS_release_tag_regex: ${{ inputs.release-tag-regex }}
         INPUTS_changes_file: ${{ inputs.changes-file }}
         INPUTS_working_directory: ${{ inputs.working-directory }}
-        INPUTS_action_gh_release_parameters: ${{ inputs.action-gh-release-parameters }}
+        INPUTS_latest: ${{ inputs.latest }}
 
     - name: Determine whether a release should be published
       id: determine-if-releasing
@@ -162,40 +204,53 @@ runs:
       # conditions drift apart.
       if: steps.find-artifacts.outputs.artifact-ids != ''
 
-    - name: Parse `action-gh-release-parameters` and set inputs for `softprops/action-gh-release`
-      id: action-gh-release-parameters
+    - name: Create the GitHub release
       shell: bash
       run: |
         set -e
         set -x
         set -o pipefail
 
-        FAKE_TAG=""
+        TAG="$REF_NAME"
         if [ "$FORCE_RELEASE" = "true" ]; then
             workflow_path="${WORKFLOW_REF%%@*}"
             workflow_file=$(basename "$workflow_path")
             timestamp=$( TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H-%M-%S )
-            FAKE_TAG="v-$timestamp-$REF_NAME-$SHA-$RUN_NUMBER-$workflow_file"
+            TAG="v-$timestamp-$REF_NAME-$SHA-$RUN_NUMBER-$workflow_file"
         fi
-        # This will get the inputs JSON from the `ACTION_GH_RELEASE_PARAMETERS` env var. This avoids
-        # any string interpolation issues, since the inputs will contain quotes.
-        parse-and-set-action-gh-release-parameters.py \
-            --working-directory "$INPUTS_working_directory" \
-            --artifact-directory "$RUNNER_TEMP/release-artifacts" \
-            --changes-file "$INPUTS_changes_file" \
-            --fake-tag "$FAKE_TAG"
+
+        # Everything comes from env vars rather than being interpolated into this script, and the
+        # token is only ever in the environment, so it never shows up in the process table. The
+        # `--opt=value` form is deliberate - with a space, argparse reads a value that starts with
+        # a "-" as another option, and "-v1" is a legal git tag.
+        create-release.py \
+            --tag="$TAG" \
+            --artifact-directory="$RUNNER_TEMP/release-artifacts" \
+            --working-directory="$INPUTS_working_directory" \
+            --changes-file="$INPUTS_changes_file" \
+            --release-name="$INPUTS_release_name" \
+            --target="$INPUTS_target" \
+            --repository="$INPUTS_repository" \
+            --discussion-category="$INPUTS_discussion_category" \
+            --draft="$INPUTS_draft" \
+            --prerelease="$INPUTS_prerelease" \
+            --generate-release-notes="$INPUTS_generate_release_notes" \
+            --latest="$INPUTS_latest"
       env:
-        ACTION_GH_RELEASE_PARAMETERS: ${{ inputs.action-gh-release-parameters }}
         FORCE_RELEASE: ${{ steps.determine-if-releasing.outputs.force-release }}
+        GH_TOKEN: ${{ inputs.token }}
         INPUTS_changes_file: ${{ inputs.changes-file }}
+        INPUTS_discussion_category: ${{ inputs.discussion-category }}
+        INPUTS_draft: ${{ inputs.draft }}
+        INPUTS_generate_release_notes: ${{ inputs.generate-release-notes }}
+        INPUTS_latest: ${{ inputs.latest }}
+        INPUTS_prerelease: ${{ inputs.prerelease }}
+        INPUTS_release_name: ${{ inputs.release-name }}
+        INPUTS_repository: ${{ inputs.repository }}
+        INPUTS_target: ${{ inputs.target }}
         INPUTS_working_directory: ${{ inputs.working-directory }}
         REF_NAME: ${{ github.ref_name }}
         RUN_NUMBER: ${{ github.run_number }}
         SHA: ${{ github.sha }}
         WORKFLOW_REF: ${{ github.workflow_ref }}
-      if: steps.determine-if-releasing.outputs.should-release == 'true'
-
-    - name: Publish GitHub release
-      uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
-      with: ${{ steps.action-gh-release-parameters.outputs }}
       if: steps.determine-if-releasing.outputs.should-release == 'true'

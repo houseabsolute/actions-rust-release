@@ -3,7 +3,6 @@
 import argparse
 import glob
 import os
-import json
 from pathlib import Path
 import re
 from typing import Dict, List, Union
@@ -141,14 +140,14 @@ class InputValidator:
             if self.inputs.get("extra_files"):
                 validation_errors.extend(self.validate_extra_files(path))
 
-        # Validate action-gh-release-parameters JSON if present
-        if self.inputs.get("action_gh_release_parameters"):
-            try:
-                json.loads(self.inputs["action_gh_release_parameters"])
-            except json.JSONDecodeError:
-                validation_errors.append(
-                    "'action-gh-release-parameters' must be valid JSON"
-                )
+        # `latest` is a tri-state, not a boolean - leaving it unset means "let GitHub decide".
+        # Anything else would be silently ignored, so it is better to say so now than to publish a
+        # release that is not marked the way the caller asked for.
+        latest = self.inputs.get("latest", "").strip().lower()
+        if latest and latest not in ("true", "false"):
+            validation_errors.append(
+                f"'latest' must be either 'true' or 'false' if it is set, but it is '{latest}'"
+            )
 
         return validation_errors
 
@@ -433,6 +432,21 @@ class TestInputValidator(unittest.TestCase):
         """Publish mode does not require target or archive-name."""
         self.setup_env({**self.publish_inputs(), "executable-name": "ubi"})
         self.assertFalse(InputValidator(self.temp_dir, PUBLISH_MODE).validate())
+
+    def test_publish_mode_latest_is_tri_state(self) -> None:
+        """`latest` may be unset, but if it is set it has to be a boolean."""
+        for value in ("", "true", "false", "TRUE"):
+            with self.subTest(value=value):
+                self.setup_env(
+                    {**self.publish_inputs(), "executable-name": "ubi", "latest": value}
+                )
+                self.assertFalse(InputValidator(self.temp_dir, PUBLISH_MODE).validate())
+
+        self.setup_env(
+            {**self.publish_inputs(), "executable-name": "ubi", "latest": "yes"}
+        )
+        errors = InputValidator(self.temp_dir, PUBLISH_MODE).validate()
+        self.assertTrue(any("'latest' must be either" in error for error in errors))
 
     def test_publish_mode_invalid_regex(self) -> None:
         """Publish mode rejects a regex that does not compile."""
