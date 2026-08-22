@@ -293,6 +293,10 @@ Set this to `"true"` to mark the release as a prerelease.
 Set this to `"true"` or `"false"` to control whether the release is marked as the latest release. If
 you leave this unset, GitHub decides based on the release date, which is usually what you want.
 
+This cannot be `"true"` when `draft` or `prerelease` is `"true"`, because GitHub will not mark
+either of those as the latest release. The action rejects that combination up front rather than
+letting it fail once your archives have already been built.
+
 ### `target`
 
 - **Required**: no

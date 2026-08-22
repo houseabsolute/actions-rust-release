@@ -34,6 +34,17 @@ def main() -> None:
         sys.exit(1)
 
 
+def is_true(value: str) -> bool:
+    """
+    Interpret an action input as a boolean.
+
+    This has to agree with the same helper in create-release.py and set-should-release.py. If this
+    were stricter, a `draft: "1"` would pass validation here and still become a `--draft` there,
+    which is exactly the late failure this validation exists to prevent.
+    """
+    return value.strip().lower() not in ("", "false", "0")
+
+
 class InputValidator:
     """Validate inputs for a GitHub Action that handles Rust binary releases."""
 
@@ -148,6 +159,16 @@ class InputValidator:
             validation_errors.append(
                 f"'latest' must be either 'true' or 'false' if it is set, but it is '{latest}'"
             )
+        elif latest == "true":
+            # GitHub refuses to mark a draft or a prerelease as the latest release. Without this
+            # the caller gets an opaque API error from the very last step, after every archive has
+            # been built and downloaded.
+            for name in ("draft", "prerelease"):
+                if is_true(self.inputs.get(name, "")):
+                    validation_errors.append(
+                        f"'latest' cannot be 'true' when '{name}' is 'true', because GitHub will "
+                        f"not mark a {name} as the latest release"
+                    )
 
         return validation_errors
 
@@ -447,6 +468,51 @@ class TestInputValidator(unittest.TestCase):
         )
         errors = InputValidator(self.temp_dir, PUBLISH_MODE).validate()
         self.assertTrue(any("'latest' must be either" in error for error in errors))
+
+    def test_publish_mode_latest_conflicts_with_draft_and_prerelease(self) -> None:
+        """GitHub rejects this combination, but only from the last step of the whole action."""
+        for name in ("draft", "prerelease"):
+            with self.subTest(name=name):
+                self.setup_env(
+                    {
+                        **self.publish_inputs(),
+                        "executable-name": "ubi",
+                        "latest": "true",
+                        name: "true",
+                    }
+                )
+                errors = InputValidator(self.temp_dir, PUBLISH_MODE).validate()
+                self.assertTrue(
+                    any(f"'latest' cannot be 'true' when '{name}'" in e for e in errors)
+                )
+
+        # create-release.py treats any of these as true, so validation has to as well.
+        for value in ("1", "yes", "TRUE"):
+            with self.subTest(value=value):
+                self.setup_env(
+                    {
+                        **self.publish_inputs(),
+                        "executable-name": "ubi",
+                        "latest": "true",
+                        "draft": value,
+                    }
+                )
+                errors = InputValidator(self.temp_dir, PUBLISH_MODE).validate()
+                self.assertTrue(
+                    any("'latest' cannot be 'true'" in e for e in errors),
+                    f"draft={value!r} should conflict with latest",
+                )
+
+        # The combination is only a problem when `latest` is actually asked for.
+        self.setup_env(
+            {
+                **self.publish_inputs(),
+                "executable-name": "ubi",
+                "latest": "false",
+                "draft": "true",
+            }
+        )
+        self.assertFalse(InputValidator(self.temp_dir, PUBLISH_MODE).validate())
 
     def test_publish_mode_invalid_regex(self) -> None:
         """Publish mode rejects a regex that does not compile."""

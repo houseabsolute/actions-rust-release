@@ -153,6 +153,8 @@ runs:
         INPUTS_changes_file: ${{ inputs.changes-file }}
         INPUTS_working_directory: ${{ inputs.working-directory }}
         INPUTS_latest: ${{ inputs.latest }}
+        INPUTS_draft: ${{ inputs.draft }}
+        INPUTS_prerelease: ${{ inputs.prerelease }}
 
     - name: Determine whether a release should be published
       id: determine-if-releasing
