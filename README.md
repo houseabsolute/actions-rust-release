@@ -350,6 +350,11 @@ is about to use, it fails rather than trying to add to it.
 
 A comma-separated list of the IDs of the artifacts that were attached to the release.
 
+### `release-tag`
+
+The tag of the release that was created. This is empty when the action ran but did not create a
+release, because the tag did not match the `release-tag-regex`.
+
 ## Linting and Tidying this Code
 
 The code in this repo is linted and tidied with

@@ -83,6 +83,9 @@
   validation. GitHub refuses to mark a draft or a prerelease as the latest release, so this used to
   fail with an opaque API error from the very last step, after every archive had been built.
 
+- The `publish` action has a new `release-tag` output containing the tag of the release it created.
+  This is empty when no release was created.
+
 - Every action this action uses is now pinned to a commit hash rather than a tag, so a compromised
   or moved tag upstream cannot change what runs in your workflow.
 

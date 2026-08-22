@@ -12,29 +12,66 @@ permissions:
   contents: read
 
 jobs:
+  # The platforms live here rather than inline in the `test` job so that the `release` job can work
+  # out how many assets the release should end up with. Hard coding that number means adding a
+  # platform quietly stops checking that every platform made it into the release.
+  platforms:
+    name: Work out which platforms to build for
+    runs-on: ubuntu-24.04
+    outputs:
+      platforms: ${{ steps.platforms.outputs.platforms }}
+      asset-count: ${{ steps.platforms.outputs.asset-count }}
+    steps:
+      - name: List the platforms
+        id: platforms
+        shell: bash
+        run: |
+          set -e
+          set -o pipefail
+
+          platforms=$(
+              cat <<'JSON'
+          [
+            {
+              "platform_name": "Linux-x86_64",
+              "os": "ubuntu-24.04",
+              "target": "x86_64-unknown-linux-gnu",
+              "cache-cross-binary": true
+            },
+            {
+              "platform_name": "Linux-powerpc64",
+              "os": "ubuntu-24.04",
+              "target": "powerpc64-unknown-linux-gnu",
+              "cache-cross-binary": true
+            },
+            {
+              "platform_name": "Windows-x86_64",
+              "os": "windows-latest",
+              "target": "x86_64-pc-windows-msvc"
+            },
+            {
+              "platform_name": "macOS-aarch64",
+              "os": "macOS-latest",
+              "target": "aarch64-apple-darwin"
+            }
+          ]
+          JSON
+          )
+
+          echo "platforms=$( jq --compact-output . <<<"$platforms" )" >> "$GITHUB_OUTPUT"
+          # Each platform contributes an archive and its checksum file to the release.
+          echo "asset-count=$(( $( jq length <<<"$platforms" ) * 2 ))" >> "$GITHUB_OUTPUT"
+
   test:
     name: Test
+    needs: platforms
     permissions:
       actions: read # `tests/check-release.py` downloads this run's packaged artifact.
       contents: read
     strategy:
       fail-fast: false
       matrix:
-        platform:
-          - platform_name: Linux-x86_64
-            os: ubuntu-24.04
-            target: x86_64-unknown-linux-gnu
-            cache-cross-binary: true
-          - platform_name: Linux-powerpc64
-            os: ubuntu-24.04
-            target: powerpc64-unknown-linux-gnu
-            cache-cross-binary: true
-          - platform_name: Windows-x86_64
-            os: windows-latest
-            target: x86_64-pc-windows-msvc
-          - platform_name: macOS-aarch64
-            os: macOS-latest
-            target: aarch64-apple-darwin
+        platform: ${{ fromJSON(needs.platforms.outputs.platforms) }}
 
     runs-on: ${{ matrix.platform.os }}
     steps:
@@ -79,7 +116,7 @@ jobs:
 
   release:
     name: Publish the packaged archives as one release
-    needs: test
+    needs: [platforms, test]
     runs-on: ubuntu-24.04
     permissions:
       actions: read # The publish action lists this run's artifacts to pick the ones to release.
@@ -92,15 +129,46 @@ jobs:
         with:
           persist-credentials: false
       - name: Publish release
+        id: publish
         uses: ./publish
         with:
           executable-name: test-project
           # We always do a release during tests, just to make sure that the release part of the
           # action works.
           _force-release-for-testing: true
-          draft: true
           repository: houseabsolute/actions-rust-release-testing
           token: ${{ secrets.ACTIONS_RUST_RELEASE_TESTING_TOKEN }}
+          # This workflow sets the inputs that shape the release, so that the next step can check
+          # that each one actually reached GitHub. The other test workflows leave them alone,
+          # which covers the defaults. `changes-file` and `target` are left at their defaults
+          # here, because the other workflows already cover those.
+          release-name: Test release for ${{ github.sha }}
+          generate-release-notes: true
+          draft: true
+          prerelease: true
+          # `latest` has to become a single `--latest=false` argument. Split into two, `gh` would
+          # read the "false" as another file to upload, where the asset check below catches it.
+          # GitHub will not mark a draft or a prerelease as latest either way, so the release's
+          # own `isLatest` cannot tell us anything here.
+          latest: false
+      - name: Check the release
+        shell: bash
+        run: |
+          ./tests/verify-release.py \
+              --tag "$TAG" \
+              --repository houseabsolute/actions-rust-release-testing \
+              --executable-name test-project \
+              --expect-title "Test release for $SHA" \
+              --expect-draft \
+              --expect-prerelease \
+              --expect-notes-from Changes.md \
+              --expect-generated-notes \
+              --expect-asset-count "$ASSET_COUNT"
+        env:
+          ASSET_COUNT: ${{ needs.platforms.outputs.asset-count }}
+          GH_TOKEN: ${{ secrets.ACTIONS_RUST_RELEASE_TESTING_TOKEN }}
+          SHA: ${{ github.sha }}
+          TAG: ${{ steps.publish.outputs.release-tag }}
 
   test-scripts:
     name: Test the Python scripts
@@ -119,3 +187,4 @@ jobs:
           ./set-should-release.py --test
           ./create-release.py --test
           ./make-archive.py --test
+          ./tests/verify-release.py --test

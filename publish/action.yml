@@ -114,6 +114,11 @@ outputs:
       A comma-separated list of the IDs of the artifacts that were attached to the release.
     value: ${{ steps.find-artifacts.outputs.artifact-ids }}
 
+  release-tag:
+    description: |
+      The tag of the release that was created. This is empty if no release was created.
+    value: ${{ steps.create-release.outputs.tag }}
+
 runs:
   using: composite
   steps:
@@ -207,6 +212,7 @@ runs:
       if: steps.find-artifacts.outputs.artifact-ids != ''
 
     - name: Create the GitHub release
+      id: create-release
       shell: bash
       run: |
         set -e
@@ -238,6 +244,10 @@ runs:
             --prerelease="$INPUTS_prerelease" \
             --generate-release-notes="$INPUTS_generate_release_notes" \
             --latest="$INPUTS_latest"
+
+        # This is written after the release is created, not before, so that the output is only
+        # set when there really is a release with this tag.
+        echo "tag=$TAG" >> "$GITHUB_OUTPUT"
       env:
         FORCE_RELEASE: ${{ steps.determine-if-releasing.outputs.force-release }}
         GH_TOKEN: ${{ inputs.token }}
