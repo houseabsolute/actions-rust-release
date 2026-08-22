@@ -81,7 +81,7 @@ inputs:
       Set this to "true" or "false" to control whether the release is marked as the latest one. If
       this is left unset, GitHub decides based on the release date, which is what you usually want.
 
-  target:
+  target-commitish:
     description: |
       The branch name or commit SHA that the tag is created from, if the tag does not already
       exist. This defaults to the repository's default branch.
@@ -240,7 +240,7 @@ runs:
             --working-directory="$INPUTS_working_directory" \
             --changes-file="$INPUTS_changes_file" \
             --release-name="$INPUTS_release_name" \
-            --target="$INPUTS_target" \
+            --target-commitish="$INPUTS_target_commitish" \
             --repository="$INPUTS_repository" \
             --discussion-category="$INPUTS_discussion_category" \
             --draft="$INPUTS_draft" \
@@ -262,7 +262,7 @@ runs:
         INPUTS_prerelease: ${{ inputs.prerelease }}
         INPUTS_release_name: ${{ inputs.release-name }}
         INPUTS_repository: ${{ inputs.repository }}
-        INPUTS_target: ${{ inputs.target }}
+        INPUTS_target_commitish: ${{ inputs.target-commitish }}
         INPUTS_working_directory: ${{ inputs.working-directory }}
         REF_NAME: ${{ github.ref_name }}
         RUN_ATTEMPT: ${{ github.run_attempt }}

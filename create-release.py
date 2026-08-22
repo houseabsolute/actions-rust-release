@@ -41,7 +41,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--working-directory", default=".")
     parser.add_argument("--changes-file")
     parser.add_argument("--release-name")
-    parser.add_argument("--target")
+    parser.add_argument("--target-commitish")
     parser.add_argument("--repository")
     parser.add_argument("--discussion-category")
     # These arrive as the strings the caller wrote in their workflow, not as flags, so that
@@ -128,8 +128,10 @@ def build_command(args: argparse.Namespace, files: List[str]) -> List[str]:
         command.extend(["--repo", args.repository])
     if args.release_name:
         command.extend(["--title", args.release_name])
-    if args.target:
-        command.extend(["--target", args.target])
+    if args.target_commitish:
+        # `gh` calls this `--target`. The input is named for GitHub's own `target_commitish` so
+        # that it cannot be confused with the Rust target the packaging action takes.
+        command.extend(["--target", args.target_commitish])
     if args.discussion_category:
         command.extend(["--discussion-category", args.discussion_category])
     if args.draft:
@@ -168,7 +170,7 @@ class TestBuildCommand(unittest.TestCase):
             "working_directory": ".",
             "changes_file": None,
             "release_name": None,
-            "target": None,
+            "target_commitish": None,
             "repository": None,
             "discussion_category": None,
             "draft": False,
@@ -218,7 +220,7 @@ class TestBuildCommand(unittest.TestCase):
         command = build_command(
             self.args(
                 release_name="Release 1.2.3",
-                target="main",
+                target_commitish="main",
                 repository="me/other-repo",
                 discussion_category="Announcements",
                 draft=True,

@@ -144,8 +144,8 @@ jobs:
           token: ${{ secrets.ACTIONS_RUST_RELEASE_TESTING_TOKEN }}
           # This workflow sets the inputs that shape the release, so that the next step can check
           # that each one actually reached GitHub. The other test workflows leave them alone,
-          # which covers the defaults. `changes-file` and `target` are left at their defaults
-          # here, because the other workflows already cover those.
+          # which covers the defaults. `changes-file` and `target-commitish` are left at their
+          # defaults here, because the other workflows already cover those.
           release-name: Test release for ${{ github.sha }}
           generate-release-notes: true
           # This one publishes for real rather than creating a draft. The testing repository has

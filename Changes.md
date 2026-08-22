@@ -58,7 +58,11 @@
   This replaces the `action-gh-release-parameters` input, which took a JSON blob of parameters for
   that action. Tying this action's interface to another project's input names was a mistake, so the
   parameters people actually use are now named inputs: `release-name`, `draft`, `prerelease`,
-  `latest`, `target`, `repository`, `token`, `discussion-category`, and `generate-release-notes`.
+  `latest`, `target-commitish`, `repository`, `token`, `discussion-category`, and
+  `generate-release-notes`.
+
+  `target_commitish` keeps its GitHub name rather than becoming `target`, because the packaging
+  action already has a `target` input meaning the Rust target triple, and the two are unrelated.
 
   The `body` and `body_path` parameters have no replacement, because `changes-file` already covers
   that. There is no replacement for `append_body` or `preserve_order`, which `gh` cannot do.

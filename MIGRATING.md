@@ -134,17 +134,14 @@ the parameters people actually used are now named inputs on `publish`:
 | `draft`                    | `draft`                  |
 | `prerelease`               | `prerelease`             |
 | `make_latest`              | `latest`                 |
-| `target_commitish`         | `target`                 |
+| `target_commitish`         | `target-commitish`       |
 | `repository`               | `repository`             |
 | `token`                    | `token`                  |
 | `discussion_category_name` | `discussion-category`    |
 | `generate_release_notes`   | `generate-release-notes` |
 
-Two of these need a second look:
+One of these needs a second look:
 
-- `target` means something different on each action. On the packaging action it is the Rust target
-  triple, like `x86_64-unknown-linux-gnu`. On `publish` it is the branch or SHA to tag, which is
-  what `target_commitish` was. Your workflow now has both.
 - `make_latest` accepted `legacy` as a third value. `latest` takes only `"true"` or `"false"`, and
   rejects anything else during input validation. Leaving it unset is the same as `legacy`: GitHub
   decides based on the release date.

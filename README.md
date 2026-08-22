@@ -300,12 +300,15 @@ This cannot be `"true"` when `draft` or `prerelease` is `"true"`, because GitHub
 either of those as the latest release. The action rejects that combination up front rather than
 letting it fail once your archives have already been built.
 
-### `target`
+### `target-commitish`
 
 - **Required**: no
 
 The branch name or commit SHA that the tag is created from, if the tag does not already exist. This
 defaults to the repository's default branch.
+
+This is named after GitHub's own `target_commitish`, rather than `target`, so that it is not
+confused with the Rust target the packaging action takes. They are unrelated.
 
 ### `discussion-category`
 
