@@ -32,7 +32,7 @@ jobs:
     runs-on: ${{ matrix.platform.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Build executable
         uses: houseabsolute/actions-rust-cross@v1
         with:
@@ -54,7 +54,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Publish release
         uses: houseabsolute/actions-rust-release/publish@v1
         with:

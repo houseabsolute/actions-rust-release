@@ -21,7 +21,7 @@
       actions: read
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: houseabsolute/actions-rust-release/publish@v1
         with:
           executable-name: my-project
