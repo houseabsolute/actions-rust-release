@@ -79,25 +79,32 @@ runs:
       shell: bash
       run: |
         echo "The publish action must run on a Linux runner, but this job is running on" \
-             "${{ runner.os }}. Move this step to a job with 'runs-on: ubuntu-latest' or" \
+             "$RUNNER_OS_NAME. Move this step to a job with 'runs-on: ubuntu-latest' or" \
              "similar. Only the packaging action needs to run on the platform you built for." >&2
         exit 1
+      env:
+        RUNNER_OS_NAME: ${{ runner.os }}
       if: runner.os != 'Linux'
 
     - name: Show inputs
       shell: bash
       run: |
-        echo '${{ toJSON(inputs) }}'
+        echo "$INPUTS"
+      env:
+        INPUTS: ${{ toJSON(inputs) }}
 
     - name: Add this action's path to PATH
       shell: bash
-      run: echo "${{ github.action_path }}/.." >> $GITHUB_PATH
+      run: echo "$ACTION_PATH/.." >> "$GITHUB_PATH"
+      env:
+        ACTION_PATH: ${{ github.action_path }}
 
     - name: Validate inputs
       shell: bash
       run: |
-        validate-inputs.py --mode publish "${{ github.workspace }}"
+        validate-inputs.py --mode publish "$GITHUB_WORKSPACE_DIR"
       env:
+        GITHUB_WORKSPACE_DIR: ${{ github.workspace }}
         INPUTS_executable_name: ${{ inputs.executable-name }}
         INPUTS_artifact_regex: ${{ inputs.artifact-regex }}
         INPUTS_release_tag_regex: ${{ inputs.release-tag-regex }}
@@ -126,22 +133,26 @@ runs:
         set -x
         set -o pipefail
 
-        # The regex comes from an env var to avoid any string interpolation issues, since it will
-        # contain backslashes and quotes. The token comes from one so that it never appears in the
-        # process table.
+        # Everything comes from env vars to avoid any string interpolation issues, since the regex
+        # will contain backslashes and quotes. The token comes from one so that it never appears in
+        # the process table.
         find-release-artifacts.py \
-            --executable-name "${{ inputs.executable-name }}" \
+            --executable-name "$INPUTS_executable_name" \
             --artifact-regex "$ARTIFACT_REGEX" \
-            --repo "${{ github.repository }}" \
-            --run-id "${{ github.run_id }}" \
-            --api-url "${{ github.api_url }}"
+            --repo "$REPO" \
+            --run-id "$RUN_ID" \
+            --api-url "$API_URL"
       env:
+        INPUTS_executable_name: ${{ inputs.executable-name }}
         ARTIFACT_REGEX: ${{ inputs.artifact-regex }}
+        REPO: ${{ github.repository }}
+        RUN_ID: ${{ github.run_id }}
+        API_URL: ${{ github.api_url }}
         GITHUB_TOKEN: ${{ github.token }}
       if: steps.determine-if-releasing.outputs.should-release == 'true'
 
     - name: Download the release artifacts
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         artifact-ids: ${{ steps.find-artifacts.outputs.artifact-ids }}
         path: ${{ runner.temp }}/release-artifacts
@@ -160,25 +171,31 @@ runs:
         set -o pipefail
 
         FAKE_TAG=""
-        if [ "${{ steps.determine-if-releasing.outputs.force-release }}" = "true" ]; then
-            workflow_ref="${{ github.workflow_ref }}"
-            workflow_path="${workflow_ref%%@*}"
+        if [ "$FORCE_RELEASE" = "true" ]; then
+            workflow_path="${WORKFLOW_REF%%@*}"
             workflow_file=$(basename "$workflow_path")
             timestamp=$( TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H-%M-%S )
-            FAKE_TAG="v-$timestamp-${{ github.ref_name }}-${{ github.sha }}-${{ github.run_number }}-$workflow_file"
+            FAKE_TAG="v-$timestamp-$REF_NAME-$SHA-$RUN_NUMBER-$workflow_file"
         fi
         # This will get the inputs JSON from the `ACTION_GH_RELEASE_PARAMETERS` env var. This avoids
         # any string interpolation issues, since the inputs will contain quotes.
         parse-and-set-action-gh-release-parameters.py \
-            --working-directory "${{ inputs.working-directory }}" \
-            --artifact-directory "${{ runner.temp }}/release-artifacts" \
-            --changes-file "${{ inputs.changes-file }}" \
+            --working-directory "$INPUTS_working_directory" \
+            --artifact-directory "$RUNNER_TEMP/release-artifacts" \
+            --changes-file "$INPUTS_changes_file" \
             --fake-tag "$FAKE_TAG"
       env:
         ACTION_GH_RELEASE_PARAMETERS: ${{ inputs.action-gh-release-parameters }}
+        FORCE_RELEASE: ${{ steps.determine-if-releasing.outputs.force-release }}
+        INPUTS_changes_file: ${{ inputs.changes-file }}
+        INPUTS_working_directory: ${{ inputs.working-directory }}
+        REF_NAME: ${{ github.ref_name }}
+        RUN_NUMBER: ${{ github.run_number }}
+        SHA: ${{ github.sha }}
+        WORKFLOW_REF: ${{ github.workflow_ref }}
       if: steps.determine-if-releasing.outputs.should-release == 'true'
 
     - name: Publish GitHub release
-      uses: softprops/action-gh-release@v3
+      uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
       with: ${{ steps.action-gh-release-parameters.outputs }}
       if: steps.determine-if-releasing.outputs.should-release == 'true'

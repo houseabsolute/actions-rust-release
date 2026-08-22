@@ -4,20 +4,29 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/v0' }}
+
+permissions:
+  contents: read
+
 jobs:
   package:
     name: Package one target and upload a decoy artifact
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Copy test project to root
         shell: bash
         run: |
           cp -a test-project/* .
           rm -fr test-project
       - name: Build binary
-        uses: houseabsolute/actions-rust-cross@v1
+        uses: houseabsolute/actions-rust-cross@21b0f18dc621b25bfae556ff2791fca4173121e8 # v1.0.8
         with:
           command: build
           args: "--release"
@@ -34,7 +43,7 @@ jobs:
       - name: Upload a decoy artifact
         shell: bash
         run: echo "not a release archive" > decoy.txt
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-project-coverage-report
           path: decoy.txt
@@ -44,11 +53,15 @@ jobs:
     needs: package
     runs-on: ubuntu-24.04
     permissions:
-      actions: read
+      actions: read # The publish action lists this run's artifacts to pick the ones to release.
+      # These tests release to a separate repo with a token passed in via
+      # `action-gh-release-parameters`, so no write access to this repo is needed.
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Publish release
         id: publish
         uses: ./publish
@@ -71,7 +84,7 @@ jobs:
           set -e
           set -o pipefail
 
-          ids="${{ steps.publish.outputs.artifact-ids }}"
+          ids="$ARTIFACT_IDS"
           echo "Released artifact IDs: $ids"
 
           count=$(echo "$ids" | tr ',' '\n' | grep -c . || true)
@@ -81,7 +94,7 @@ jobs:
           fi
 
           decoy_id=$(
-              gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
+              gh api "repos/$REPO/actions/runs/$RUN_ID/artifacts" \
                   --jq '.artifacts[] | select(.name == "test-project-coverage-report") | .id'
           )
           if [ -z "$decoy_id" ]; then
@@ -93,4 +106,7 @@ jobs:
               exit 1
           fi
         env:
+          ARTIFACT_IDS: ${{ steps.publish.outputs.artifact-ids }}
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}

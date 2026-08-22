@@ -1,0 +1,26 @@
+rules:
+  # Both actions put their own directory on PATH so that the Python helpers next to the action.yml
+  # can be run by name. The value written is `github.action_path`, which GitHub sets to the checkout
+  # of this action, so there is no caller-controlled input involved.
+  # The ignore keys below match on file name, so `action.yml` covers both this repo's action.yml
+  # and publish/action.yml.
+  github-env:
+    ignore:
+      - action.yml
+  # The parameters for `softprops/action-gh-release` are built by a script and passed as a single
+  # expression, because the caller decides which of that action's inputs to set via the
+  # `action-gh-release-parameters` input. Listing them statically would mean hard-coding the whole
+  # input list of another action. zizmor cannot see through the expression, so it reports the step
+  # as an unanalyzable `with:` (obfuscation) and guesses it might be a checkout (artipacked).
+  obfuscation:
+    ignore:
+      - action.yml
+  artipacked:
+    ignore:
+      - action.yml
+  # zizmor suggests `gh release` instead of softprops/action-gh-release. Using the action is the
+  # point: the `action-gh-release-parameters` input is documented as passing parameters straight
+  # through to it, so replacing it would be a breaking change for every caller.
+  superfluous-actions:
+    ignore:
+      - action.yml

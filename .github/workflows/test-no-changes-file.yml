@@ -4,20 +4,32 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/v0' }}
+
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Test no changes file
     runs-on: ubuntu-24.04
+    permissions:
+      actions: read # `tests/check-release.py` downloads this run's packaged artifact.
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Copy test project to root
         shell: bash
         run: |
           cp -a test-project/* .
           rm -fr test-project
       - name: Build binary
-        uses: houseabsolute/actions-rust-cross@v1
+        uses: houseabsolute/actions-rust-cross@21b0f18dc621b25bfae556ff2791fca4173121e8 # v1.0.8
         with:
           command: build
           args: "--release"
@@ -37,23 +49,30 @@ jobs:
         shell: bash
         run: |
           ./tests/check-release.py \
-              --artifact-id "${{ steps.release.outputs.artifact-id }}" \
+              --artifact-id "$ARTIFACT_ID" \
               --executable-name test-project \
-              --github-token "${{ github.token }}" \
+              --github-token "$GITHUB_TOKEN" \
               --repo houseabsolute/actions-rust-release \
               --target "x86_64-unknown-linux-gnu" \
               --no-changes-file
+        env:
+          ARTIFACT_ID: ${{ steps.release.outputs.artifact-id }}
+          GITHUB_TOKEN: ${{ github.token }}
 
   release:
     name: Publish with no changes file
     needs: test
     runs-on: ubuntu-24.04
     permissions:
-      actions: read
+      actions: read # The publish action lists this run's artifacts to pick the ones to release.
+      # These tests release to a separate repo with a token passed in via
+      # `action-gh-release-parameters`, so no write access to this repo is needed.
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Publish release
         uses: ./publish
         with:

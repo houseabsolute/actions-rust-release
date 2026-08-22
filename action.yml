@@ -76,17 +76,22 @@ runs:
     - name: Show inputs
       shell: bash
       run: |
-        echo '${{ toJSON(inputs) }}'
+        echo "$INPUTS"
+      env:
+        INPUTS: ${{ toJSON(inputs) }}
 
     - name: Add this action's path to PATH
       shell: bash
-      run: echo "${{ github.action_path }}" >> $GITHUB_PATH
+      run: echo "$ACTION_PATH" >> "$GITHUB_PATH"
+      env:
+        ACTION_PATH: ${{ github.action_path }}
 
     - name: Validate inputs
       shell: bash
       run: |
-        validate-inputs.py --mode package "${{ github.workspace }}"
+        validate-inputs.py --mode package "$GITHUB_WORKSPACE_DIR"
       env:
+        GITHUB_WORKSPACE_DIR: ${{ github.workspace }}
         INPUTS_executable_name: ${{ inputs.executable-name }}
         INPUTS_target: ${{ inputs.target }}
         INPUTS_archive_name: ${{ inputs.archive-name }}
@@ -99,12 +104,19 @@ runs:
       shell: bash
       run: |
         make-archive.py \
-            --executable-name "${{ inputs.executable-name }}" \
-            --target "${{ inputs.target }}" \
-            --archive-name "${{ inputs.archive-name }}" \
-            --changes-file "${{ inputs.changes-file }}" \
-            --extra-files "${{ inputs.extra-files }}" \
-            --working-directory "${{ inputs.working-directory }}"
+            --executable-name "$INPUTS_executable_name" \
+            --target "$INPUTS_target" \
+            --archive-name "$INPUTS_archive_name" \
+            --changes-file "$INPUTS_changes_file" \
+            --extra-files "$INPUTS_extra_files" \
+            --working-directory "$INPUTS_working_directory"
+      env:
+        INPUTS_executable_name: ${{ inputs.executable-name }}
+        INPUTS_target: ${{ inputs.target }}
+        INPUTS_archive_name: ${{ inputs.archive-name }}
+        INPUTS_extra_files: ${{ inputs.extra-files }}
+        INPUTS_changes_file: ${{ inputs.changes-file }}
+        INPUTS_working_directory: ${{ inputs.working-directory }}
 
     - name: Generate SHA-256 checksum file (*nix)
       shell: bash
@@ -112,10 +124,13 @@ runs:
         set -e
         set -x
 
-        cd ${{ inputs.working-directory }}
+        cd "$INPUTS_working_directory"
         shasum --algorithm 256 \
-            "${{ steps.package-archive.outputs.archive-file }}" \
-            > "${{ steps.package-archive.outputs.archive-file }}.sha256"
+            "$ARCHIVE_FILE" \
+            > "$ARCHIVE_FILE.sha256"
+      env:
+        INPUTS_working_directory: ${{ inputs.working-directory }}
+        ARCHIVE_FILE: ${{ steps.package-archive.outputs.archive-file }}
       if: runner.os != 'Windows'
 
     - name: Install dos2unix and psutils on Windows
@@ -127,16 +142,19 @@ runs:
     - name: Generate SHA-256 checksum file (Windows)
       shell: powershell
       run: |
-        cd ${{ inputs.working-directory }}
+        cd $env:INPUTS_working_directory
         shasum --algorithm 256 `
-            "${{ steps.package-archive.outputs.archive-file }}" `
-            > "${{ steps.package-archive.outputs.archive-file }}.sha256"
-        dos2unix "${{ steps.package-archive.outputs.archive-file }}.sha256"
+            "$env:ARCHIVE_FILE" `
+            > "$env:ARCHIVE_FILE.sha256"
+        dos2unix "$env:ARCHIVE_FILE.sha256"
+      env:
+        INPUTS_working_directory: ${{ inputs.working-directory }}
+        ARCHIVE_FILE: ${{ steps.package-archive.outputs.archive-file }}
       if: runner.os == 'Windows'
 
     - name: Publish release artifact for run
       id: publish-release-artifact
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: ${{ steps.package-archive.outputs.archive-file }}
         path: ${{ inputs.working-directory }}/${{ steps.package-archive.outputs.archive-file }}*

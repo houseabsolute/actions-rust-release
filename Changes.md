@@ -57,6 +57,8 @@
   releases have always been published directly. Rather than change that behavior now, this action no
   longer sets `draft` at all. If you want draft releases, pass `"draft": true` in
   `action-gh-release-parameters` - which now works.
+- Every action this action uses is now pinned to a commit hash rather than a tag, so a compromised
+  or moved tag upstream cannot change what runs in your workflow.
 - Multi-line values in `action-gh-release-parameters`, such as `body`, no longer corrupt the
   parameters passed to `softprops/action-gh-release`.
 
