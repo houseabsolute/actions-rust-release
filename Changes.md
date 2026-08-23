@@ -18,7 +18,7 @@
     needs: package
     runs-on: ubuntu-24.04
     permissions:
-      actions: read # The publish action lists this run's artifacts to pick the ones to release.
+      actions: read # The publish action lists this run's artifacts.
       contents: write # Creating the release writes to this repository.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

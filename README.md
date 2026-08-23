@@ -20,9 +20,10 @@ name: Release
 
 on:
   push:
-    # This decides which tags start a run. The publish action then decides which of those actually
-    # release, using its `release-tag-regex` input. Its default accepts a version with or without a
-    # leading "v", so both patterns are here.
+    # This decides which tags start a run. The publish action then
+    # decides which of those actually release, using its
+    # `release-tag-regex` input. Its default accepts a version with
+    # or without a leading "v", so both patterns are here.
     tags:
       - "v[0-9]*"
       - "[0-9]*"
@@ -77,7 +78,7 @@ jobs:
     needs: package
     runs-on: ubuntu-24.04
     permissions:
-      actions: read # The publish action lists this run's artifacts to pick the ones to release.
+      actions: read # The publish action lists this run's artifacts.
       contents: write # Creating the release writes to this repository.
     steps:
       - name: Checkout

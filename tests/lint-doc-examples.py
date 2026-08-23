@@ -74,6 +74,8 @@ def main() -> int:
     if shutil.which(args.zizmor) is None:
         die(f"Could not find '{args.zizmor}' on PATH.")
 
+    wide = [line for doc in DOCS for line in too_wide_in(Path(doc))]
+
     examples = [(name, body) for doc in DOCS for name, body in examples_in(Path(doc))]
     if not examples:
         # Every doc losing its examples at once is far more likely to be a bug in the extraction
@@ -91,7 +93,54 @@ def main() -> int:
         for name, _ in examples:
             print(f"  {name}")
 
-        return audit(args.zizmor, Path(td), [name for name, _ in examples])
+        found = audit(args.zizmor, Path(td), [name for name, _ in examples])
+
+    # Reported last so that it is the part still on screen when the run ends.
+    if wide:
+        print(
+            f"\n{len(wide)} line(s) in the docs' YAML blocks are wider than {MAX_WIDTH} "
+            "characters:\n",
+            file=sys.stderr,
+        )
+        for line in wide:
+            print(f"  {line}", file=sys.stderr)
+        print(
+            "\nGitHub does not wrap the contents of a code block, so one long line puts a "
+            "horizontal scroll bar under the whole example.",
+            file=sys.stderr,
+        )
+
+    return found or (1 if wide else 0)
+
+
+# Narrow enough that GitHub renders the examples without a horizontal scroll bar.
+MAX_WIDTH = 88
+
+# The 40 characters of a commit SHA are not something an example can trim, so a line pinning an
+# action gets to be that much longer. The rest of it, including the version comment Dependabot
+# maintains, is still held to `MAX_WIDTH`.
+PINNED_SHA = re.compile(r"^( *-? *uses: \S+@)[0-9a-f]{40}")
+
+
+def measured(line: str) -> str:
+    """The part of a line that has to fit in `MAX_WIDTH`."""
+    return PINNED_SHA.sub(r"\g<1>", line)
+
+
+def too_wide_in(doc: Path) -> list[str]:
+    """Return one message per over-long line in the doc's YAML blocks."""
+    found = []
+    text = doc.read_text()
+    for block in re.finditer(r"```yaml\n(.*?)```", text, re.S):
+        # Count from the line the block's contents start on.
+        first = text.count("\n", 0, block.start(1)) + 1
+        for offset, line in enumerate(block.group(1).split("\n")):
+            width = len(measured(line))
+            if width > MAX_WIDTH:
+                found.append(
+                    f"{doc}:{first + offset} is {width} characters: {line.strip()}"
+                )
+    return found
 
 
 # The blocks that are not examples are snippets of inputs. None of them can contain any of this,
@@ -272,6 +321,53 @@ class TestAsWorkflow(unittest.TestCase):
         )
         assert workflow is not None
         self.assertIn("actions/checkout@v7", workflow)
+
+
+class TestTooWideIn(unittest.TestCase):
+    """Unit tests for the check that keeps the examples free of a horizontal scroll bar."""
+
+    def setUp(self) -> None:
+        td = tempfile.TemporaryDirectory()
+        self.addCleanup(td.cleanup)
+        self.dir = Path(td.name)
+
+    def write(self, body: str) -> Path:
+        doc = self.dir / "doc.md"
+        doc.write_text(body)
+        return doc
+
+    def test_reports_a_long_line_with_its_place_in_the_doc(self) -> None:
+        doc = self.write(
+            "intro\n\n```yaml\nshort: yes\n" + "long: " + "x" * 90 + "\n```\n"
+        )
+        found = too_wide_in(doc)
+        self.assertEqual(len(found), 1)
+        self.assertIn(f"{doc}:5 is 96 characters", found[0])
+
+    def test_ignores_text_outside_a_yaml_block(self) -> None:
+        self.assertEqual(too_wide_in(self.write("x" * 200 + "\n")), [])
+
+    def test_only_the_sha_is_free_on_a_pinned_uses_line(self) -> None:
+        doc = self.write(
+            "```yaml\n      - uses: some/action@"
+            + "a" * 40
+            + " # v1.2.3 and then some more\n```\n"
+        )
+        self.assertEqual(too_wide_in(doc), [])
+
+    def test_a_pinned_uses_line_with_a_long_comment_is_still_too_wide(self) -> None:
+        doc = self.write(
+            "```yaml\n      - uses: some/action@"
+            + "a" * 40
+            + " # "
+            + "x" * 80
+            + "\n```\n"
+        )
+        self.assertEqual(len(too_wide_in(doc)), 1)
+
+    def test_does_not_exempt_a_uses_line_pinned_to_a_tag(self) -> None:
+        doc = self.write("```yaml\n      - uses: some/" + "a" * 80 + "@v1\n```\n")
+        self.assertEqual(len(too_wide_in(doc)), 1)
 
 
 class TestAssertEverythingWasAudited(unittest.TestCase):
