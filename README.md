@@ -293,10 +293,16 @@ says.
 - **Required**: no
 - **Default**: `"Changes.md"`
 
-The name of the file that contains the changelog for this project. This will be used to generate a
-description for the GitHub Release. It is looked for in the `working-directory`.
+The name of the file whose contents become the body of the GitHub Release. This is the text people
+see on the release page, and it is published along with the release, so whatever is in this file
+ends up public. It is looked for in the `working-directory`.
 
-If you set this to an empty string, then the release will have no description.
+The whole file is used as-is. Nothing is extracted from it, so a cumulative changelog is published
+in full, with the entries for every past version, not just the one being released. If you want only
+the newest entry, write that file yourself in an earlier step and point this input at it.
+
+If you set this to an empty string, then the release will have no body. See
+[`generate-release-notes`](#generate-release-notes) for having GitHub write the notes instead.
 
 ### `working-directory`
 
