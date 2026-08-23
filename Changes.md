@@ -18,10 +18,12 @@
     needs: package
     runs-on: ubuntu-24.04
     permissions:
-      actions: read
-      contents: write
+      actions: read # The publish action lists this run's artifacts to pick the ones to release.
+      contents: write # Creating the release writes to this repository.
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: houseabsolute/actions-rust-release/publish@v1
         with:
           executable-name: my-project

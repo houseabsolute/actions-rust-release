@@ -16,28 +16,52 @@ Here's an example from the release workflow for
 [my tool `precious`](https://github.com/houseabsolute/precious):
 
 ```yaml
+name: Release
+
+on:
+  push:
+    # This decides which tags start a run. The publish action then decides which of those actually
+    # release, using its `release-tag-regex` input. Its default accepts a version with or without a
+    # leading "v", so both patterns are here.
+    tags:
+      - "v[0-9]*"
+      - "[0-9]*"
+
+# Individual jobs ask for more where they need it.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Never cancel a release that is part way through creating one.
+  cancel-in-progress: false
+
 jobs:
   package:
-    name: Package - ${{ matrix.platform.release_for }}
+    name: Package - ${{ matrix.platform.os-name }}
     strategy:
       matrix:
         platform:
-          - os_name: Linux-x86_64
-            os: ubuntu-24.04
+          - os-name: Linux-x86_64
+            runs-on: ubuntu-24.04
             target: x86_64-unknown-linux-musl
 
-          - os_name: macOS-x86_64
-            os: macOS-latest
+          - os-name: macOS-x86_64
+            runs-on: macOS-latest
             target: x86_64-apple-darwin
 
-            # more release targets here ...
+          # more release targets here ...
 
-    runs-on: ${{ matrix.platform.os }}
+    runs-on: ${{ matrix.platform.runs-on }}
+    permissions:
+      contents: read # Checkout only. Uploading the artifact does not use this token.
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Build executable
-        uses: houseabsolute/actions-rust-cross@v1
+        uses: houseabsolute/actions-rust-cross@21b0f18dc621b25bfae556ff2791fca4173121e8 # v1.0.8
         with:
           target: ${{ matrix.platform.target }}
           args: "--locked --release"
@@ -53,16 +77,34 @@ jobs:
     needs: package
     runs-on: ubuntu-24.04
     permissions:
-      actions: read
-      contents: write
+      actions: read # The publish action lists this run's artifacts to pick the ones to release.
+      contents: write # Creating the release writes to this repository.
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Publish release
         uses: houseabsolute/actions-rust-release/publish@v1
         with:
           executable-name: precious
 ```
+
+## Pinning Actions to a Commit
+
+The examples above pin third-party actions to a commit SHA, with the version in a trailing comment.
+Pin `actions-rust-release` the same way once you are using it for real. A tag like `v1` moves, and
+pinning to the SHA it points at means a tag move here cannot change what runs in your workflow. The
+examples cannot show that yet, because v1 has not been released, so there is no SHA to point at.
+Look up the SHA of the release you want and use it in place of `@v1` in both steps. The examples
+above are otherwise clean under [zizmor](https://docs.zizmor.sh/)'s pedantic persona, which is what
+this repo lints its own workflows with, and those two references are all it has left to say about
+them.
+
+If you add a
+[`.github/dependabot.yml`](https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference)
+with the `github-actions` ecosystem turned on, Dependabot reads the version in the trailing comment
+and sends you a PR when there is a newer release, updating the SHA and the comment together.
 
 ## Why Two Actions?
 

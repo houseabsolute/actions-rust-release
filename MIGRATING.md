@@ -22,19 +22,40 @@ inputs from it, and add a new job.
 Before, in v0:
 
 ```yaml
+name: Release
+
+on:
+  push:
+    # This decides which tags start a run. v0 then decided which of those actually released,
+    # using its `release-tag-prefix` input.
+    tags:
+      - "v[0-9]*"
+      - "[0-9]*"
+
+# Individual jobs ask for more where they need it.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Never cancel a release that is part way through creating one.
+  cancel-in-progress: false
+
 jobs:
   release:
-    name: Release - ${{ matrix.platform.os_name }}
+    name: Release - ${{ matrix.platform.os-name }}
     strategy:
       matrix:
         platform:
           # your platforms here
-        runs-on: ${{ matrix.platform.os }}
+    runs-on: ${{ matrix.platform.runs-on }}
     permissions:
-      contents: write
+      contents: write # v0 created the release from this job.
     steps:
-      - uses: actions/checkout@v7
-      - uses: houseabsolute/actions-rust-cross@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: houseabsolute/actions-rust-cross@21b0f18dc621b25bfae556ff2791fca4173121e8 # v1.0.8
         with:
           target: ${{ matrix.platform.target }}
           args: "--locked --release"
@@ -49,17 +70,41 @@ jobs:
 After, in v1:
 
 ```yaml
+name: Release
+
+on:
+  push:
+    # This decides which tags start a run. The publish action then decides which of those actually
+    # release, using its `release-tag-regex` input. Its default accepts a version with or without a
+    # leading "v", so both patterns are here.
+    tags:
+      - "v[0-9]*"
+      - "[0-9]*"
+
+# Individual jobs ask for more where they need it.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Never cancel a release that is part way through creating one.
+  cancel-in-progress: false
+
 jobs:
   package:
-    name: Package - ${{ matrix.platform.os_name }}
+    name: Package - ${{ matrix.platform.os-name }}
     strategy:
       matrix:
         platform:
           # your platforms here, unchanged
-    runs-on: ${{ matrix.platform.os }}
+    runs-on: ${{ matrix.platform.runs-on }}
+    permissions:
+      contents: read # Checkout only. Uploading the artifact does not use this token.
     steps:
-      - uses: actions/checkout@v7
-      - uses: houseabsolute/actions-rust-cross@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: houseabsolute/actions-rust-cross@21b0f18dc621b25bfae556ff2791fca4173121e8 # v1.0.8
         with:
           target: ${{ matrix.platform.target }}
           args: "--locked --release"
@@ -75,10 +120,12 @@ jobs:
     needs: package
     runs-on: ubuntu-24.04
     permissions:
-      actions: read
-      contents: write
+      actions: read # The publish action lists this run's artifacts to pick the ones to release.
+      contents: write # Creating the release writes to this repository.
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: houseabsolute/actions-rust-release/publish@v1
         with:
           executable-name: my-project
@@ -93,6 +140,9 @@ A few things about this are easy to miss:
 - The `publish` job needs a checkout. `changes-file` defaults to `Changes.md`, and the action fails
   if that file is not in the working directory. Set `changes-file: ""` if you would rather release
   with no description and skip the checkout.
+- The `uses:` lines here pin the third-party actions to a commit SHA. Pin `actions-rust-release`
+  that way too once you pick a version. See
+  [the note on pinning in the README](README.md#pinning-actions-to-a-commit).
 - The `package` job no longer needs `contents: write`. It only uploads a workflow artifact now, so
   you can drop that permission from it.
 
