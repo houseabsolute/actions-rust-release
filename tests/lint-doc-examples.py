@@ -32,10 +32,15 @@ REAL_PLATFORM = """          - os-name: Linux-x86_64
             runs-on: ubuntu-24.04
             target: x86_64-unknown-linux-musl"""
 
-# The migration guide's "before" example shows a v0 workflow as someone already has it, so it is
-# unpinned on purpose. Rewriting it to a fake pin means the audit has to come back completely
-# clean, rather than needing an allow list that would also hide a genuinely unpinned action.
-V0_ACTION = re.compile(r"(houseabsolute/actions-rust-release(?:/publish)?)@v0(?![.\d])")
+# Two ways of writing a reference to this repo's own actions are not real pins on purpose. The
+# examples use `@<commit sha> # <version>`, because a SHA written into the docs goes out of date
+# with the next release, and the migration guide's "before" example uses `@v0` to show a workflow
+# as someone already has it. Rewriting both to a fake pin means the audit has to come back
+# completely clean, rather than needing an allow list. Only this repo's own actions are excused,
+# and only in these two forms, so a genuinely unpinned action still has to answer to zizmor.
+NOT_REALLY_PINNED = re.compile(
+    r"(houseabsolute/actions-rust-release(?:/publish)?)@(?:<commit sha> # <version>|v0(?![.\d]))"
+)
 FAKE_PIN = r"\g<1>@" + "0" * 40 + " # v0.0.0"
 
 # What a job fragment gets wrapped in so that it is a workflow zizmor will look at. Only the
@@ -184,15 +189,16 @@ def as_workflow(block: str) -> str | None:
         return None
 
     workflow = PLACEHOLDER.sub(REAL_PLATFORM, workflow)
-    return V0_ACTION.sub(FAKE_PIN, workflow)
+    return NOT_REALLY_PINNED.sub(FAKE_PIN, workflow)
 
 
 def audit(zizmor: str, root: Path, names: list[str]) -> int:
     """Run zizmor over the extracted workflows and report what it says."""
     result = subprocess.run(
         # Offline because the online audits check that a pinned SHA really exists in the action's
-        # repository, and the pin standing in for the v0 example is a fake, so they would always
-        # fail here. Whether a real pin has gone stale is a question for the docs, not for zizmor.
+        # repository, and the pins standing in for the two references above are fakes, so they
+        # would always fail here. Whether a real pin has gone stale is a question for the
+        # docs, not for zizmor.
         [zizmor, "--offline", "--persona", PERSONA, "--format", "json", str(root)],
         capture_output=True,
         text=True,
@@ -309,15 +315,36 @@ class TestAsWorkflow(unittest.TestCase):
         self.assertNotIn("@v0", workflow)
         self.assertEqual(workflow.count("@" + "0" * 40), 1)
 
-    def test_a_v1_reference_is_not_rewritten(self) -> None:
-        """Pinning these is the docs' job now, so leave zizmor free to complain when they are not."""
+    def test_the_sha_placeholder_is_given_a_fake_pin(self) -> None:
         workflow = as_workflow(
             "name: x\n\njobs:\n  j:\n    name: j\n    steps:\n"
-            "      - uses: houseabsolute/actions-rust-release@v1\n"
-            "      - uses: houseabsolute/actions-rust-release/publish@v1\n"
+            "      - uses: houseabsolute/actions-rust-release@<commit sha> # <version>\n"
+            "      - uses: houseabsolute/actions-rust-release/publish@<commit sha> # <version>\n"
         )
         assert workflow is not None
-        self.assertEqual(workflow.count("@v1\n"), 2)
+        self.assertNotIn("<commit sha>", workflow)
+        self.assertEqual(workflow.count("@" + "0" * 40), 2)
+
+    def test_only_the_two_deliberate_forms_are_excused(self) -> None:
+        """A near miss of the placeholder is zizmor's to complain about, like anything else."""
+        others = [
+            "houseabsolute/actions-rust-release@v1",
+            "houseabsolute/actions-rust-release/publish@v1.0.0",
+            "houseabsolute/actions-rust-release@v0.0.9",
+            # The placeholder only counts when it is written exactly as the docs write it.
+            "houseabsolute/actions-rust-release@<commit sha>",
+            "houseabsolute/actions-rust-release@<commit sha> #<version>",
+            "houseabsolute/actions-rust-release@<commit sha> # v1.0.0",
+        ]
+        for ref in others:
+            with self.subTest(ref=ref):
+                workflow = as_workflow(
+                    "name: x\n\njobs:\n  j:\n    name: j\n    steps:\n"
+                    f"      - uses: {ref}\n"
+                )
+                assert workflow is not None
+                self.assertIn(ref, workflow)
+                self.assertNotIn("0" * 40, workflow)
 
     def test_other_actions_are_left_alone(self) -> None:
         """Rewriting these would hide a genuinely unpinned action in an example."""

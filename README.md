@@ -68,7 +68,7 @@ jobs:
           args: "--locked --release"
           strip: true
       - name: Package artifacts
-        uses: houseabsolute/actions-rust-release@867cc107fb205972460c7905075c476852cd76f9 # v1.0.0
+        uses: houseabsolute/actions-rust-release@<commit sha> # <version>
         with:
           executable-name: precious
           target: ${{ matrix.platform.target }}
@@ -86,22 +86,30 @@ jobs:
         with:
           persist-credentials: false
       - name: Publish release
-        uses: houseabsolute/actions-rust-release/publish@867cc107fb205972460c7905075c476852cd76f9 # v1.0.0
+        uses: houseabsolute/actions-rust-release/publish@<commit sha> # <version>
         with:
           executable-name: precious
 ```
 
 ## Pinning Actions to a Commit
 
-Every action in the examples above, including this repo's own two, is pinned to a commit SHA with
-the version in a trailing comment. A tag can be moved to point somewhere else, and pinning to the
-SHA it points at means that cannot change what runs in your workflow. You can write a version tag
-like `@v1.0.0` instead if you would rather read the version at a glance, but then you are trusting
-whatever that tag points at on the day your workflow runs. This repo publishes only exact-version
-tags, so there is no moving `v1` to follow.
+Every third-party action in the examples above is pinned to a commit SHA with the version in a
+trailing comment. A tag can be moved to point somewhere else, and pinning to the SHA it points at
+means that cannot change what runs in your workflow. You can write a version tag like `@v1.0.0`
+instead if you would rather read the version at a glance, but then you are trusting whatever that
+tag points at on the day your workflow runs. This repo publishes only exact-version tags, so there
+is no moving `v1` to follow.
 
-The examples are clean under [zizmor](https://docs.zizmor.sh/)'s pedantic persona, which is what
-this repo lints its own workflows with, and CI checks that they stay that way.
+This repo's own two actions are the exception. They appear as `@<commit sha> # <version>`, because a
+real SHA written here would be out of date the next time this action is released. Replace both
+halves of that in both steps, using the same release for each: the SHA of the
+[release](https://github.com/houseabsolute/actions-rust-release/releases) you want, and its version
+in the comment. `git ls-remote https://github.com/houseabsolute/actions-rust-release refs/tags/*`
+prints the full SHA for every tag if you would rather not click through.
+
+Apart from those two placeholders, the examples are clean under [zizmor](https://docs.zizmor.sh/)'s
+pedantic persona, which is what this repo lints its own workflows with, and CI checks that they stay
+that way.
 
 If you add a
 [`.github/dependabot.yml`](https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference)

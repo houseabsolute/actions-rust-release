@@ -1,3 +1,7 @@
+## 1.0.1 - 2026-08-23
+
+- Documentation updates.
+
 ## 1.0.0 - 2026-08-23
 
 - **Breaking change**: Creating the GitHub release has moved out of this action and into a new

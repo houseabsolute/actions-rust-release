@@ -111,7 +111,7 @@ jobs:
           args: "--locked --release"
           strip: true
       - name: Package artifacts
-        uses: houseabsolute/actions-rust-release@867cc107fb205972460c7905075c476852cd76f9 # v1.0.0
+        uses: houseabsolute/actions-rust-release@<commit sha> # <version>
         with:
           executable-name: my-project
           target: ${{ matrix.platform.target }}
@@ -127,7 +127,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: houseabsolute/actions-rust-release/publish@867cc107fb205972460c7905075c476852cd76f9 # v1.0.0
+      - uses: houseabsolute/actions-rust-release/publish@<commit sha> # <version>
         with:
           executable-name: my-project
 ```
@@ -141,9 +141,11 @@ A few things about this are easy to miss:
 - The `publish` job needs a checkout. `changes-file` defaults to `Changes.md`, and the action fails
   if that file is not in the working directory. Set `changes-file: ""` if you would rather release
   with no description and skip the checkout.
-- The `uses:` lines here are pinned to a commit SHA rather than a tag, and the SHA shown for each of
-  this repo's actions is the v1.0.0 release, so you can copy them as they are. See
-  [the note on pinning in the README](README.md#pinning-actions-to-a-commit) for why.
+- The third-party `uses:` lines here pin each action to a commit SHA rather than a tag. This repo's
+  own two show `@<commit sha> # <version>` instead, since a real SHA written here would go out of
+  date with the next release. See
+  [the note on pinning in the README](README.md#pinning-actions-to-a-commit) for why, and for what
+  to put there.
 - The `package` job no longer needs `contents: write`. It only uploads a workflow artifact now, so
   you can drop that permission from it.
 
