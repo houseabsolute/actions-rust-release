@@ -360,8 +360,12 @@ letting it fail once your archives have already been built.
 
 - **Required**: no
 
-The branch name or commit SHA that the tag is created from, if the tag does not already exist. This
-defaults to the repository's default branch.
+The branch name or commit SHA to create the tag from, for the case where the tag does not already
+exist. It defaults to the repository's default branch.
+
+Most of the time this does nothing. A release only happens for a tag that was pushed, so the tag
+already exists and GitHub leaves it alone. It matters when you set `repository` to release into
+another repository, where the tag may well not exist yet.
 
 This is named after GitHub's own `target_commitish`, rather than `target`, so that it is not
 confused with the Rust target the packaging action takes. They are unrelated.
