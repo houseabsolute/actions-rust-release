@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   test:
-    name: Test
+    name: Test - ${{ matrix.platform.os-name }}
     permissions:
       actions: read # `tests/check-release.py` downloads this run's packaged artifact.
       contents: read
@@ -21,22 +21,22 @@ jobs:
       fail-fast: false
       matrix:
         platform:
-          - platform_name: Linux-x86_64
-            os: ubuntu-24.04
+          - os-name: Linux-x86_64
+            runs-on: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             cache-cross-binary: true
-          - platform_name: Linux-powerpc64
-            os: ubuntu-24.04
+          - os-name: Linux-powerpc64
+            runs-on: ubuntu-24.04
             target: powerpc64-unknown-linux-gnu
             cache-cross-binary: true
-          - platform_name: Windows-x86_64
-            os: windows-latest
+          - os-name: Windows-x86_64
+            runs-on: windows-latest
             target: x86_64-pc-windows-msvc
-          - platform_name: macOS-aarch64
-            os: macOS-latest
+          - os-name: macOS-aarch64
+            runs-on: macOS-latest
             target: aarch64-apple-darwin
 
-    runs-on: ${{ matrix.platform.os }}
+    runs-on: ${{ matrix.platform.runs-on }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
