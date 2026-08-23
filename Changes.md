@@ -1,4 +1,4 @@
-## 1.0.0 - unreleased
+## 1.0.0 - 2023-08-23
 
 - **Breaking change**: Creating the GitHub release has moved out of this action and into a new
   `houseabsolute/actions-rust-release/publish` action. This action now only packages your executable
@@ -24,7 +24,7 @@
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: houseabsolute/actions-rust-release/publish@v1
+      - uses: houseabsolute/actions-rust-release/publish@867cc107fb205972460c7905075c476852cd76f9 # v1.0.0
         with:
           executable-name: my-project
   ```
