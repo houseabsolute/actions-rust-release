@@ -3,10 +3,9 @@ author: "Dave Rolsky <autarch@urth.org>"
 branding:
   icon: home
   color: gray-dark
-description: |
-  This action packages binaries from Rust projects into archives and uploads them as workflow
-  artifacts. Use the `houseabsolute/actions-rust-release/publish` action to turn those artifacts
-  into a GitHub release.
+description:
+  Packages Rust project binaries into archives and uploads them as workflow artifacts, for the
+  publish action to release.
 inputs:
   executable-name:
     description: |

@@ -3,15 +3,9 @@ author: "Dave Rolsky <autarch@urth.org>"
 branding:
   icon: home
   color: gray-dark
-description: |
-  This action collects the archives uploaded by the `houseabsolute/actions-rust-release` action
-  and publishes them as a single GitHub release. Run it once, from a job that runs after all of
-  your build jobs have succeeded.
-
-  This action must run on a Linux runner, and fails immediately if it does not. Unlike the packaging
-  action, it does not touch your build output, so there is no reason to run it anywhere else.
-
-  The job running this action needs both the `contents: write` and `actions: read` permissions.
+description:
+  Collects the archives uploaded by the packaging action and publishes them as a single GitHub
+  release.
 inputs:
   executable-name:
     description: |
