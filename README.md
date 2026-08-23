@@ -68,7 +68,7 @@ jobs:
           args: "--locked --release"
           strip: true
       - name: Package artifacts
-        uses: houseabsolute/actions-rust-release@v1
+        uses: houseabsolute/actions-rust-release@867cc107fb205972460c7905075c476852cd76f9 # v1.0.0
         with:
           executable-name: precious
           target: ${{ matrix.platform.target }}
@@ -86,21 +86,22 @@ jobs:
         with:
           persist-credentials: false
       - name: Publish release
-        uses: houseabsolute/actions-rust-release/publish@v1
+        uses: houseabsolute/actions-rust-release/publish@867cc107fb205972460c7905075c476852cd76f9 # v1.0.0
         with:
           executable-name: precious
 ```
 
 ## Pinning Actions to a Commit
 
-The examples above pin third-party actions to a commit SHA, with the version in a trailing comment.
-Pin `actions-rust-release` the same way once you are using it for real. A tag like `v1` moves, and
-pinning to the SHA it points at means a tag move here cannot change what runs in your workflow. The
-examples cannot show that yet, because v1 has not been released, so there is no SHA to point at.
-Look up the SHA of the release you want and use it in place of `@v1` in both steps. The examples
-above are otherwise clean under [zizmor](https://docs.zizmor.sh/)'s pedantic persona, which is what
-this repo lints its own workflows with, and those two references are all it has left to say about
-them.
+Every action in the examples above, including this repo's own two, is pinned to a commit SHA with
+the version in a trailing comment. A tag can be moved to point somewhere else, and pinning to the
+SHA it points at means that cannot change what runs in your workflow. You can write a version tag
+like `@v1.0.0` instead if you would rather read the version at a glance, but then you are trusting
+whatever that tag points at on the day your workflow runs. This repo publishes only exact-version
+tags, so there is no moving `v1` to follow.
+
+The examples are clean under [zizmor](https://docs.zizmor.sh/)'s pedantic persona, which is what
+this repo lints its own workflows with, and CI checks that they stay that way.
 
 If you add a
 [`.github/dependabot.yml`](https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference)

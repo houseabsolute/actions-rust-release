@@ -32,10 +32,10 @@ REAL_PLATFORM = """          - os-name: Linux-x86_64
             runs-on: ubuntu-24.04
             target: x86_64-unknown-linux-musl"""
 
-# The examples cannot pin this repo's own actions, because there is no released SHA to pin to yet.
-# Rewriting them to a fake pin means the audit has to come back completely clean, rather than
-# needing an allow list that would also hide a genuinely unpinned third-party action.
-OWN_ACTION = re.compile(r"(houseabsolute/actions-rust-release(?:/publish)?)@v\d+")
+# The migration guide's "before" example shows a v0 workflow as someone already has it, so it is
+# unpinned on purpose. Rewriting it to a fake pin means the audit has to come back completely
+# clean, rather than needing an allow list that would also hide a genuinely unpinned action.
+V0_ACTION = re.compile(r"(houseabsolute/actions-rust-release(?:/publish)?)@v0(?![.\d])")
 FAKE_PIN = r"\g<1>@" + "0" * 40 + " # v0.0.0"
 
 # What a job fragment gets wrapped in so that it is a workflow zizmor will look at. Only the
@@ -184,16 +184,15 @@ def as_workflow(block: str) -> str | None:
         return None
 
     workflow = PLACEHOLDER.sub(REAL_PLATFORM, workflow)
-    return OWN_ACTION.sub(FAKE_PIN, workflow)
+    return V0_ACTION.sub(FAKE_PIN, workflow)
 
 
 def audit(zizmor: str, root: Path, names: list[str]) -> int:
     """Run zizmor over the extracted workflows and report what it says."""
     result = subprocess.run(
         # Offline because the online audits check that a pinned SHA really exists in the action's
-        # repository. The examples' pins for this repo's own actions are fakes, put there so the
-        # unpinned-uses audit has something to look at, so those audits would always fail here.
-        # Whether a real pin has gone stale is a question for the docs, not for zizmor.
+        # repository, and the pin standing in for the v0 example is a fake, so they would always
+        # fail here. Whether a real pin has gone stale is a question for the docs, not for zizmor.
         [zizmor, "--offline", "--persona", PERSONA, "--format", "json", str(root)],
         capture_output=True,
         text=True,
@@ -301,17 +300,24 @@ class TestAsWorkflow(unittest.TestCase):
         self.assertNotIn("your platforms here", workflow)
         self.assertIn("os-name: Linux-x86_64", workflow)
 
-    def test_this_repos_own_actions_are_given_a_fake_pin(self) -> None:
+    def test_the_v0_example_is_given_a_fake_pin(self) -> None:
         workflow = as_workflow(
             "name: x\n\njobs:\n  j:\n    name: j\n    steps:\n"
-            "      - uses: houseabsolute/actions-rust-release@v1\n"
-            "      - uses: houseabsolute/actions-rust-release/publish@v1\n"
             "      - uses: houseabsolute/actions-rust-release@v0\n"
         )
         assert workflow is not None
         self.assertNotIn("@v0", workflow)
-        self.assertNotIn("@v1\n", workflow)
-        self.assertEqual(workflow.count("@" + "0" * 40), 3)
+        self.assertEqual(workflow.count("@" + "0" * 40), 1)
+
+    def test_a_v1_reference_is_not_rewritten(self) -> None:
+        """Pinning these is the docs' job now, so leave zizmor free to complain when they are not."""
+        workflow = as_workflow(
+            "name: x\n\njobs:\n  j:\n    name: j\n    steps:\n"
+            "      - uses: houseabsolute/actions-rust-release@v1\n"
+            "      - uses: houseabsolute/actions-rust-release/publish@v1\n"
+        )
+        assert workflow is not None
+        self.assertEqual(workflow.count("@v1\n"), 2)
 
     def test_other_actions_are_left_alone(self) -> None:
         """Rewriting these would hide a genuinely unpinned action in an example."""

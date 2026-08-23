@@ -1,4 +1,4 @@
-## 1.0.0 - 2023-08-23
+## 1.0.0 - 2026-08-23
 
 - **Breaking change**: Creating the GitHub release has moved out of this action and into a new
   `houseabsolute/actions-rust-release/publish` action. This action now only packages your executable
