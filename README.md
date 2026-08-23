@@ -116,6 +116,9 @@ You decide when that is, with the `needs:` of the job you call `publish` from, s
 fails cannot leave you with a release that is missing its binary. It also means exactly one job
 creates the release, rather than every leg of the matrix trying to create the same one at once.
 
+It is also what makes [immutable releases](#immutable-releases) possible. A published immutable
+release cannot be changed, so we need to build all the archives before creating the release.
+
 ## What They Do
 
 The `actions-rust-release` action will:
