@@ -141,7 +141,11 @@ def as_workflow(block: str) -> str | None:
 def audit(zizmor: str, root: Path, names: list[str]) -> int:
     """Run zizmor over the extracted workflows and report what it says."""
     result = subprocess.run(
-        [zizmor, "--persona", PERSONA, "--format", "json", str(root)],
+        # Offline because the online audits check that a pinned SHA really exists in the action's
+        # repository. The examples' pins for this repo's own actions are fakes, put there so the
+        # unpinned-uses audit has something to look at, so those audits would always fail here.
+        # Whether a real pin has gone stale is a question for the docs, not for zizmor.
+        [zizmor, "--offline", "--persona", PERSONA, "--format", "json", str(root)],
         capture_output=True,
         text=True,
     )
