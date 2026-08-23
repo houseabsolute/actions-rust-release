@@ -62,6 +62,19 @@ invoke = "once"
 ok-exit-codes = 0
 lint-failure-exit-codes = 2
 
+[commands.doc-examples]
+type = "lint"
+include = ["/README.md", "/MIGRATING.md", "/Changes.md"]
+invoke = "once"
+path-args = "none"
+working-dir = "root"
+cmd = ["tests/lint-doc-examples.py"]
+ok-exit-codes = 0
+# The script exits 1 when zizmor found something in a doc example, and 2 when the script itself
+# could not do its job, which is not a lint failure.
+lint-failure-exit-codes = [1]
+expect-stderr = true
+
 [commands.zizmor]
 type = "lint"
 include = ".github/**/*.yml"

@@ -197,3 +197,4 @@ jobs:
           ./create-release.py --test
           ./make-archive.py --test
           ./tests/verify-release.py --test
+          ./tests/lint-doc-examples.py --test
